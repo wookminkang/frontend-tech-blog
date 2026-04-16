@@ -15,18 +15,36 @@ export async function generateStaticParams() {
   return slugs.map((slug) => ({ slug }));
 }
 
+const BASE_URL = 'https://frontend-tech-blog-psi.vercel.app';
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const article = getArticleBySlug(slug);
   if (!article) return {};
+
+  const url = `${BASE_URL}/articles/${slug}`;
+
   return {
     title: article.title,
     description: article.summary,
+    keywords: article.tags,
+    alternates: {
+      canonical: url,
+    },
     openGraph: {
       title: article.title,
       description: article.summary,
       type: 'article',
       publishedTime: article.date,
+      url,
+      locale: 'ko_KR',
+      siteName: '매일매일',
+      tags: article.tags,
+    },
+    twitter: {
+      card: 'summary',
+      title: article.title,
+      description: article.summary,
     },
   };
 }
