@@ -59,67 +59,26 @@ export default async function ArticlePage({ params }: PageProps) {
       <ProgressBar />
       <Header />
 
-      <main style={{ flex: 1, maxWidth: 720, margin: '0 auto', padding: '56px 24px 80px' }}>
+      <main className="flex-1 w-full max-w-content mx-auto px-4 pt-10 pb-16 sm:px-6 sm:pt-14 sm:pb-20">
         {/* Category badge */}
-        <div
-          style={{
-            display: 'inline-block',
-            padding: '6px 14px 6px 12px',
-            background: '#fff3e8',
-            borderLeft: '4px solid #fe6e00',
-            color: '#fe6e00',
-            fontSize: 13,
-            fontWeight: 600,
-            borderRadius: '0 4px 4px 0',
-            marginBottom: 20,
-          }}
-        >
+        <div className="inline-block px-3 py-1.5 bg-[#fff3e8] border-l-4 border-primary text-primary text-[13px] font-semibold rounded-r mb-5">
           {article.category}에 관련한 질문이에요.
         </div>
 
         {/* Title */}
-        <h1
-          style={{
-            fontSize: 28,
-            fontWeight: 700,
-            lineHeight: 1.3,
-            letterSpacing: '-0.5px',
-            color: '#212121',
-            marginBottom: 32,
-          }}
-        >
+        <h1 className="text-[22px] sm:text-[28px] font-bold leading-snug tracking-tight text-text-main mb-8">
           {article.title}
         </h1>
 
         {/* Meta */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            flexWrap: 'wrap',
-            fontSize: 13,
-            color: '#757575',
-            paddingBottom: 28,
-            borderBottom: '2px solid #212121',
-            marginBottom: 44,
-          }}
-        >
+        <div className="flex items-center gap-3 flex-wrap text-[13px] text-text-sub pb-7 border-b-2 border-text-main mb-11">
           <span>{article.date}</span>
           {article.tags.length > 0 && (
             <>
-              <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#757575', display: 'inline-block' }} />
-              <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <span className="w-[3px] h-[3px] rounded-full bg-text-sub inline-block" />
+              <span className="flex gap-1.5 flex-wrap">
                 {article.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    style={{
-                      background: '#F5F5F5',
-                      borderRadius: 4,
-                      padding: '2px 8px',
-                      fontSize: 12,
-                    }}
-                  >
+                  <span key={tag} className="bg-code-bg rounded px-2 py-0.5 text-[12px]">
                     {tag}
                   </span>
                 ))}
@@ -130,30 +89,19 @@ export default async function ArticlePage({ params }: PageProps) {
 
         {/* Content */}
         {article.isTemplate || !article.content ? (
-          <div style={{ textAlign: 'center', padding: '80px 0', color: '#757575' }}>
-            <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>콘텐츠 준비 중입니다</p>
-            <p style={{ fontSize: 14 }}>곧 업데이트될 예정입니다.</p>
+          <div className="text-center py-20 text-text-sub">
+            <p className="text-base font-semibold mb-2">콘텐츠 준비 중입니다</p>
+            <p className="text-sm">곧 업데이트될 예정입니다.</p>
           </div>
         ) : (
           <ArticleContent content={article.content} />
         )}
 
         {/* Back link */}
-        <div style={{ marginTop: 64, paddingTop: 32, borderTop: '1px solid #E0E0E0' }}>
+        <div className="mt-16 pt-8 border-t border-border">
           <a
             href="/"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              color: '#fe6e00',
-              textDecoration: 'none',
-              padding: '10px 22px',
-              border: '1.5px solid #fe6e00',
-              borderRadius: 20,
-            }}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-primary no-underline px-5 py-2.5 border border-primary rounded-full hover:bg-[#fff3e8] transition-colors"
           >
             목록으로 돌아가기
           </a>

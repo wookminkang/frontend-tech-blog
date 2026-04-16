@@ -330,3 +330,44 @@ body {
   background: rgba(254, 110, 0, 0.05);
   font-weight: 600;
 }
+
+/* ═══════════════════════════
+   MOBILE RESPONSIVE
+   ═══════════════════════════ */
+
+@media (max-width: 640px) {
+  /* 코드 블록 — 폰트 축소 + 가로 스크롤 */
+  .article-content pre code {
+    font-size: 12px;
+    padding: 16px;
+  }
+
+  .article-content .code-header {
+    font-size: 10px;
+    padding: 8px 12px;
+  }
+
+  /* 테이블 — 가로 스크롤 */
+  .article-content table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  /* 본문 폰트 */
+  .article-content p,
+  .article-content li {
+    font-size: 15px;
+  }
+
+  /* h4 섹션 레이블 */
+  .article-content h4 {
+    font-size: 11px;
+  }
+
+  /* 인라인 코드 */
+  .article-content code:not(pre code) {
+    font-size: 12px;
+  }
+}
