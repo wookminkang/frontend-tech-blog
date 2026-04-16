@@ -1,0 +1,25 @@
+# 에이전트/브랜드 가이드 (원격 저장소 미포함)
+_context/
+_templates/
+CLAUDE.md
+
+# macOS
+.DS_Store
+
+# Next.js
+maeil-maeil/.next/
+maeil-maeil/out/
+maeil-maeil/node_modules/
+
+# 환경 변수
+.env
+.env.local
+.env*.local
+
+# 로그
+*.log
+npm-debug.log*
+
+# 에디터
+.vscode/
+.idea/
