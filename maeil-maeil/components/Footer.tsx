@@ -38,7 +38,7 @@ export default function Footer() {
               Category
             </p>
             <ul className="list-none p-0 m-0 flex flex-col gap-2.5">
-              {['프론트엔드', 'CS', '개발도구', '기타'].map((cat) => (
+              {['프론트엔드', 'AI', '기타'].map((cat) => (
                 <li key={cat}>
                   <Link
                     href={`/?category=${encodeURIComponent(cat)}`}
