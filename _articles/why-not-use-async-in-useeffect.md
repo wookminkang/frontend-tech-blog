@@ -1,36 +1,3 @@
-# 블로그 상세 페이지 템플릿
-
-> 이 파일은 매일매일 블로그 아티클 작성을 위한 템플릿입니다.
-> `{{키워드}}` 형식의 변수를 실제 내용으로 교체하여 사용합니다.
-
----
-
-## 메타 정보 (Meta)
-
-```
-title: 왜 useEffect에서 async 함수를 직접 사용하면 안 되나요?
-category: 프론트엔드
-tags: React, useEffect, async/await, 메모리 누수
-published_at: 2026-04-14
-slug: why-not-use-async-in-useeffect
-```
-
----
-
-## 페이지 구조
-
----
-
-### [HEADER]
-
-```
-로고: 매일매일
-```
-
----
-
-### [ARTICLE]
-
 # 왜 useEffect에서 async 함수를 직접 사용하면 안 되나요?
 
 > **프론트엔드에 관련한 질문이에요.**
@@ -39,95 +6,136 @@ slug: why-not-use-async-in-useeffect
 
 #### 핵심 요약 (Summary)
 
-`useEffect`의 콜백은 동기 함수이거나, cleanup 함수를 반환해야 합니다.
-`async` 함수는 항상 `Promise`를 반환하므로 useEffect와 직접 함께 사용하면
-예상치 못한 메모리 누수와 버그가 발생합니다.
+`useEffect`의 콜백은 아무것도 반환하지 않거나, cleanup 함수(동기 함수)를 반환해야 합니다. `async` 함수는 항상 `Promise`를 반환하기 때문에 `useEffect`에 직접 전달하면 React가 cleanup을 실행할 수 없습니다. 그 결과 컴포넌트가 언마운트된 이후에도 상태 업데이트가 시도되어 메모리 누수와 경고가 발생합니다. 해결책은 `useEffect` 내부에 `async` 함수를 선언하고 즉시 호출하는 것입니다.
 
 ---
 
 #### 왜 이런 문제가 발생하나요? (Why)
 
-`useEffect`는 콜백 함수가 반환하는 값을 cleanup 함수로 인식합니다.
-`async` 함수를 직접 전달하면 React는 `Promise` 객체를 받게 됩니다.
-React는 이것을 처리하지 못하고, 비동기 작업이 컴포넌트 언마운트 이후에도
-상태를 업데이트하려 해 메모리 누수가 발생합니다.
+`useEffect`의 동작 규칙은 단순합니다. 콜백이 함수를 반환하면 그것을 cleanup으로 실행하고, 아무것도 반환하지 않으면 cleanup 없이 넘어갑니다.
 
-이로 인해 발생하는 문제입니다.
+문제는 `async` 함수의 반환값입니다. `async` 함수는 내부에 `return` 구문이 없어도 항상 `Promise`를 반환합니다. React는 이 `Promise`를 cleanup 함수로 인식하려다 실패하고 조용히 무시합니다. cleanup이 실행되지 않으니 다음 문제들이 연쇄됩니다.
 
-- 언마운트 후 상태 업데이트 시도로 인한 메모리 누수
-- cleanup 함수가 실행되지 않아 구독 해제, 타이머 해제 불가
-- race condition 발생 가능
-- React 18 StrictMode에서 이중 실행으로 인한 버그 증폭
+**첫째, 언마운트 후 상태 업데이트가 시도됩니다.** 사용자가 페이지를 이동해 컴포넌트가 언마운트되더라도, 진행 중이던 비동기 작업은 멈추지 않습니다. `fetch`가 완료된 시점에 `setState`를 호출하면 React는 이미 사라진 컴포넌트에 상태를 업데이트하려고 시도합니다.
+
+**둘째, race condition이 발생합니다.** 의존성 배열 값이 빠르게 바뀌면 이전 요청보다 새 요청이 먼저 완료될 수 있습니다. cleanup이 없으면 이전 요청의 응답이 나중에 도착해 화면에 잘못된 데이터가 표시됩니다.
+
+**셋째, React 18 StrictMode에서 버그가 증폭됩니다.** StrictMode는 개발 환경에서 `useEffect`를 마운트 → 언마운트 → 마운트 순서로 두 번 실행합니다. cleanup이 없으면 첫 번째 실행의 비동기 작업이 취소되지 않아 두 번의 요청이 동시에 진행됩니다.
 
 ---
 
 #### 예시 코드 — 잘못된 사용 (Bad Example)
 
 ```tsx
-// async 함수를 useEffect에 직접 전달 — 금지
+// async 함수를 useEffect에 직접 전달하는 경우
+// async 함수는 Promise를 반환하므로 cleanup이 실행되지 않습니다.
+
 useEffect(async () => {
-  const data = await fetchData();
-  setData(data);
-}, []);
-// async 함수는 Promise를 반환
-// React가 cleanup 대신 Promise를 받게 됨
+  const data = await fetchUser(userId);
+  setUser(data); // 컴포넌트가 언마운트된 후에도 실행될 수 있습니다.
+}, [userId]);
 ```
 
-`async () => {}`는 항상 `Promise`를 반환합니다.
-React는 cleanup 함수 자리에 Promise를 받아 무시하고, 비동기 작업이 완료된 후
-컴포넌트가 이미 언마운트되었어도 `setData`를 호출해 오류를 일으킵니다.
+```tsx
+// cleanup이 없어 race condition이 발생하는 경우
+// userId가 1 → 2로 빠르게 바뀔 때,
+// userId=2 요청이 먼저 끝나도 userId=1 응답이 나중에 도착하면
+// 화면에는 userId=1의 데이터가 표시됩니다.
+
+useEffect(() => {
+  fetchUser(userId).then((data) => {
+    setUser(data); // 어느 요청의 응답인지 보장할 수 없습니다.
+  });
+}, [userId]);
+```
 
 ---
 
 #### 올바른 사용법 (Good Example)
 
 ```tsx
+// 기본 패턴 — 내부에 async 함수를 선언하고 즉시 호출합니다.
+
 useEffect(() => {
-  // 내부에 async 함수를 선언하고 바로 호출
   const load = async () => {
-    const data = await fetchData();
-    setData(data);
+    const data = await fetchUser(userId);
+    setUser(data);
   };
+
   load();
-}, []);
+}, [userId]);
 ```
 
-`useEffect` 콜백 자체는 동기 함수로 유지하고,
-내부에 `async` 함수를 선언해 즉시 호출합니다.
-
-메모리 누수 방지가 필요하다면 cleanup과 함께 사용하세요.
-
 ```tsx
+// AbortController 패턴 — 컴포넌트 언마운트 시 진행 중인 fetch를 취소합니다.
+// race condition과 언마운트 후 상태 업데이트를 동시에 방지합니다.
+
 useEffect(() => {
-  let isMounted = true;
+  const controller = new AbortController();
 
   const load = async () => {
-    const data = await fetchData();
-    if (isMounted) setData(data);
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        signal: controller.signal, // fetch에 AbortSignal 전달
+      });
+      const data = await res.json();
+      setUser(data);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        // 취소된 요청 — 정상적인 동작이므로 무시합니다.
+        return;
+      }
+      setError(err);
+    }
   };
 
   load();
 
-  return () => { isMounted = false; };
-}, []);
+  return () => {
+    controller.abort(); // 언마운트 또는 재실행 시 이전 요청 취소
+  };
+}, [userId]);
+```
+
+`AbortController`를 사용하면 cleanup 함수가 호출될 때 진행 중인 `fetch`가 즉시 중단됩니다. StrictMode의 이중 실행에서도 첫 번째 요청이 취소되고 두 번째 요청만 완료되어 안전합니다.
+
+```tsx
+// 데이터 fetching이 복잡해진다면 TanStack Query 사용을 고려합니다.
+// useEffect + fetch의 반복 패턴을 선언적으로 교체합니다.
+
+import { useQuery } from '@tanstack/react-query';
+
+function UserProfile({ userId }: { userId: string }) {
+  const { data: user, isLoading } = useQuery({
+    queryKey: ['user', userId],
+    queryFn: () => fetchUser(userId),
+  });
+
+  if (isLoading) return <p>불러오는 중...</p>;
+  return <p>{user?.name}</p>;
+  // 취소, 캐싱, 재시도, 에러 처리를 라이브러리가 담당합니다.
+}
 ```
 
 ---
 
 #### 정리 (Conclusion)
 
-`useEffect`에 `async` 함수를 직접 전달하면 안 됩니다.
-콜백 내부에 `async` 함수를 선언하고 즉시 호출하는 방식을 사용하세요.
+`useEffect`에 `async`를 직접 전달하면 cleanup이 동작하지 않습니다. 콜백 내부에 `async` 함수를 선언하고 즉시 호출하는 패턴이 기본이며, 언마운트나 의존성 변경이 빈번한 경우 `AbortController`로 이전 요청을 취소해 race condition을 방지합니다.
 
-컴포넌트가 언마운트될 가능성이 있다면 isMounted 플래그와 cleanup 함수를 함께 사용해
-메모리 누수를 반드시 방지하세요.
+| 상황 | 선택 |
+|------|------|
+| 단순 데이터 로드 | 내부 async 함수 + 즉시 호출 |
+| 언마운트 후 상태 업데이트 방지 | `AbortController` + cleanup |
+| 의존성이 자주 바뀌는 fetch | `AbortController`로 이전 요청 취소 |
+| fetching 로직이 복잡해질 때 | TanStack Query 도입 검토 |
 
 ---
 
 ### 추가 학습 자료 공유합니다.
 
-- [React 공식 문서 — useEffect](https://react.dev/reference/react/useEffect)
-- [devtrium — How to use async functions in useEffect](https://devtrium.com/posts/async-function-useeffect)
+- [React 공식 문서 — useEffect에서 데이터 fetching하기](https://react.dev/reference/react/useEffect#fetching-data-with-effects)
+- [MDN — AbortController](https://developer.mozilla.org/ko/docs/Web/API/AbortController)
 
 ---
 
@@ -145,9 +153,8 @@ useEffect(() => {
 로고: 매일매일
 Copyright © 2026 매일매일. All rights reserved.
 
-Contact: team.maeilmail@gmail.com
-Socials: Velog / Github
-Etc: 팀 소개 / 서비스 피드백
+Contact: kangmu238@gmail.com
+Socials: / Github
 ```
 
 ---
@@ -158,40 +165,10 @@ Etc: 팀 소개 / 서비스 피드백
 |--------|----|
 | `{{TITLE}}` | 왜 useEffect에서 async 함수를 직접 사용하면 안 되나요? |
 | `{{CATEGORY}}` | 프론트엔드 |
-| `{{TAGS}}` | React, useEffect, async/await, 메모리 누수 |
-| `{{DATE}}` | 2026-04-14 |
+| `{{TAGS}}` | React, useEffect, async/await, AbortController, 메모리 누수 |
+| `{{DATE}}` | 2026-04-17 |
 | `{{SLUG}}` | why-not-use-async-in-useeffect |
-| `{{SUMMARY}}` | useEffect 콜백은 동기 함수여야 하며, async 직접 사용 시 Promise 반환으로 메모리 누수가 발생합니다. |
-| `{{WHY}}` | React가 cleanup 자리에 Promise를 받게 되어 언마운트 후에도 상태 업데이트가 시도됩니다. |
+| `{{SUMMARY}}` | useEffect 콜백은 cleanup 함수(동기)를 반환해야 합니다. async 함수는 Promise를 반환하므로 cleanup이 실행되지 않아 메모리 누수와 race condition이 발생합니다. |
+| `{{WHY}}` | async 함수가 Promise를 반환해 React가 cleanup을 실행하지 못하고, 언마운트 후에도 상태 업데이트가 시도됩니다. |
 | `{{LANG}}` | tsx |
-| `{{BAD_CODE}}` | useEffect(async () => { const data = await fetchData(); setData(data); }, []); |
-| `{{BAD_CODE_EXPLAIN}}` | async 함수가 Promise를 반환해 cleanup 함수 대신 Promise가 전달됩니다. |
-| `{{GOOD_CODE}}` | useEffect(() => { const load = async () => { ... }; load(); }, []); |
-| `{{GOOD_CODE_EXPLAIN}}` | 내부에 async 함수를 선언해 즉시 호출하고 isMounted 플래그로 메모리 누수를 방지합니다. |
-| `{{CONCLUSION}}` | useEffect에 async를 직접 전달하지 말고 내부 함수로 선언 후 호출하세요. |
-| `{{RESOURCE_1_TITLE}}` | React 공식 문서 — useEffect |
-| `{{RESOURCE_1_URL}}` | https://react.dev/reference/react/useEffect |
-| `{{RESOURCE_2_TITLE}}` | devtrium — How to use async functions in useEffect |
-| `{{RESOURCE_2_URL}}` | https://devtrium.com/posts/async-function-useeffect |
 | `{{YEAR}}` | 2026 |
-
----
-
-## 카테고리 목록
-
-- `프론트엔드` — React, Next.js, TypeScript, CSS, HTML, 성능 최적화
-- `CS` — 자료구조, 알고리즘, 네트워크, 운영체제
-- `개발도구` — Git, 터미널, IDE
-
----
-
-## 작성 체크리스트
-
-- [x] 제목은 질문형 ("왜", "어떻게", "무엇이")으로 작성했는가
-- [x] 카테고리 뱃지가 지정되었는가
-- [x] 핵심 요약 문장이 3줄 이내인가
-- [x] 잘못된 코드 예시가 포함되었는가
-- [x] 올바른 코드 예시가 포함되었는가
-- [x] 추가 학습 자료 링크가 최소 1개 이상인가
-- [x] 이모지를 사용하지 않았는가
-- [x] slug가 영문 소문자 + 하이픈 형식인가
