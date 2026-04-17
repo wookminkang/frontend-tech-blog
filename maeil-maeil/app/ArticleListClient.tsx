@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import type { ArticleMeta } from '@/types/article';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -13,9 +14,24 @@ interface ArticleListClientProps {
 }
 
 export default function ArticleListClient({ articles }: ArticleListClientProps) {
-  const [selectedCategory, setSelectedCategory] = useState<string>('전체');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const selectedCategory = searchParams.get('category') ?? '전체';
   const [searchQuery, setSearchQuery] = useState('');
   const [inputValue, setInputValue] = useState('');
+
+  function handleCategoryChange(cat: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (cat === '전체') {
+      params.delete('category');
+    } else {
+      params.set('category', cat);
+    }
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+  }
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { '전체': articles.length };
@@ -202,7 +218,7 @@ export default function ArticleListClient({ articles }: ArticleListClientProps) 
                   return (
                     <li
                       key={cat}
-                      onClick={() => setSelectedCategory(cat)}
+                      onClick={() => handleCategoryChange(cat)}
                       className={`filter-item${isActive ? ' active' : ''}`}
                       style={{
                         display: 'flex',
