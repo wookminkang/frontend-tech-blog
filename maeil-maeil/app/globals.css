@@ -370,4 +370,12 @@ body {
   .article-content code:not(pre code) {
     font-size: 12px;
   }
+
+  /* iOS input 자동 확대 방지 — font-size 16px 미만이면 탭 시 확대됨 */
+  input[type="text"],
+  input[type="search"],
+  input[type="email"],
+  textarea {
+    font-size: 16px !important;
+  }
 }
