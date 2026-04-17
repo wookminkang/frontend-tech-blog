@@ -51,32 +51,7 @@ export default function Footer() {
             </ul>
           </div>
 
-          <div>
-            <p
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: '2px',
-                textTransform: 'uppercase',
-                color: 'rgba(255,255,255,0.4)',
-                marginBottom: 16,
-              }}
-            >
-              Links
-            </p>
-            <ul className="list-none p-0 m-0 flex flex-col gap-2.5">
-              <li>
-                <a
-                  href="https://github.com/wookminkang"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}
-                >
-                  GitHub
-                </a>
-              </li>
-            </ul>
-          </div>
+          <div />
         </div>
 
         <div
