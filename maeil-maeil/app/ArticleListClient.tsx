@@ -6,6 +6,7 @@ import type { ArticleMeta } from "@/types/article";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ArticleCard from "@/components/ArticleCard";
+import HomeModal from "@/components/HomeModal";
 
 const CATEGORIES = ["전체", "프론트엔드", "CS", "개발도구", "기타"] as const;
 
@@ -70,6 +71,7 @@ export default function ArticleListClient({
 
   return (
     <>
+      <HomeModal />
       <Header />
 
       <main style={{ flex: 1 }}>
