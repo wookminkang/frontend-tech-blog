@@ -15,7 +15,7 @@ export async function generateStaticParams() {
   return slugs.map((slug) => ({ slug }));
 }
 
-const BASE_URL = 'https://frontend-tech-blog-psi.vercel.app';
+const BASE_URL = 'https://orange-dol.com';
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
