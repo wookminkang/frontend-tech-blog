@@ -8,7 +8,7 @@ import Footer from "@/components/Footer";
 import ArticleCard from "@/components/ArticleCard";
 import HomeModal from "@/components/HomeModal";
 
-const CATEGORIES = ["전체", "프론트엔드", "AI", "기타"] as const;
+const CATEGORIES = ["전체", "프론트엔드", "AI", "기타", "실무 경험"] as const;
 
 interface ArticleListClientProps {
   articles: ArticleMeta[];

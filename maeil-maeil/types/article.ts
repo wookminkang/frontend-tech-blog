@@ -1,7 +1,7 @@
 export interface Article {
   slug: string;
   title: string;
-  category: '프론트엔드' | 'AI' | '기타';
+  category: '프론트엔드' | 'AI' | '기타' | '실무 경험';
   date: string;
   summary: string;
   tags: string[];
