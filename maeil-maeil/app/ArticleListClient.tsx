@@ -205,6 +205,51 @@ export default function ArticleListClient({
           </div>
         </div>
 
+        {/* Mobile Category Bar */}
+        <div
+          className="lg:hidden"
+          style={{
+            borderBottom: "1px solid #E8E8E8",
+            overflowX: "auto",
+            scrollbarWidth: "none",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              padding: "12px 24px",
+              width: "max-content",
+            }}
+          >
+            {CATEGORIES.map((cat) => {
+              const isActive = cat === selectedCategory;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => handleCategoryChange(cat)}
+                  style={{
+                    height: 32,
+                    padding: "0 14px",
+                    borderRadius: 16,
+                    border: isActive ? "none" : "1px solid #E8E8E8",
+                    background: isActive ? "#fe6e00" : "#fff",
+                    color: isActive ? "#fff" : "#757575",
+                    fontSize: 13,
+                    fontWeight: isActive ? 700 : 400,
+                    fontFamily: "inherit",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                  }}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Content Area */}
         <div
           style={{
