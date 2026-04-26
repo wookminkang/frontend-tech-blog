@@ -41,31 +41,8 @@ export default function Header() {
             매일<span style={{ color: '#fe6e00' }}>매일</span>
           </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex" style={{ alignItems: 'center', gap: 4 }}>
-            {NAV_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                style={{
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: '#757575',
-                  textDecoration: 'none',
-                  padding: '6px 12px',
-                  borderRadius: 6,
-                  transition: 'color 0.15s, background 0.15s',
-                }}
-                className="nav-link"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Hamburger button — mobile only */}
+          {/* Hamburger button */}
           <button
-            className="flex md:hidden"
             onClick={() => setMenuOpen(true)}
             aria-label="메뉴 열기"
             style={{
