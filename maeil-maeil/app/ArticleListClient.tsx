@@ -9,6 +9,7 @@ import ArticleCard from "@/components/ArticleCard";
 import HomeModal from "@/components/HomeModal";
 
 const CATEGORIES = ["전체", "프론트엔드", "AI", "기타", "실무 경험"] as const;
+const ITEMS_PER_PAGE = 12;
 
 interface ArticleListClientProps {
   articles: ArticleMeta[];
@@ -22,18 +23,33 @@ export default function ArticleListClient({
   const searchParams = useSearchParams();
 
   const selectedCategory = searchParams.get("category") ?? "전체";
+  const currentPage = Number(searchParams.get("page") ?? "1");
   const [searchQuery, setSearchQuery] = useState("");
   const [inputValue, setInputValue] = useState("");
 
-  function handleCategoryChange(cat: string) {
+  function pushParams(updates: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString());
-    if (cat === "전체") {
-      params.delete("category");
-    } else {
-      params.set("category", cat);
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === null) {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
     }
     const query = params.toString();
     router.push(query ? `${pathname}?${query}` : pathname);
+  }
+
+  function handleCategoryChange(cat: string) {
+    pushParams({
+      category: cat === "전체" ? null : cat,
+      page: null,
+    });
+  }
+
+  function handlePageChange(page: number) {
+    pushParams({ page: page === 1 ? null : String(page) });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const categoryCounts = useMemo(() => {
@@ -61,8 +77,16 @@ export default function ArticleListClient({
     return result;
   }, [articles, selectedCategory, searchQuery]);
 
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const safePage = Math.min(Math.max(currentPage, 1), totalPages || 1);
+  const paginated = filtered.slice(
+    (safePage - 1) * ITEMS_PER_PAGE,
+    safePage * ITEMS_PER_PAGE,
+  );
+
   function handleSearch() {
     setSearchQuery(inputValue);
+    pushParams({ page: null });
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -355,6 +379,11 @@ export default function ArticleListClient({
               <p style={{ fontSize: 14, color: "#757575" }}>
                 <strong style={{ color: "#212121" }}>{filtered.length}</strong>
                 개의 아티클
+                {totalPages > 1 && (
+                  <span style={{ marginLeft: 8 }}>
+                    ({safePage} / {totalPages} 페이지)
+                  </span>
+                )}
               </p>
             </div>
 
@@ -372,21 +401,132 @@ export default function ArticleListClient({
                 <p style={{ fontSize: 14 }}>다른 키워드로 검색해 보세요</p>
               </div>
             ) : (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                  gap: 24,
-                }}
-              >
-                {filtered.map((article, idx) => (
-                  <ArticleCard
-                    key={article.slug}
-                    article={article}
-                    index={idx}
-                  />
-                ))}
-              </div>
+              <>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                    gap: 24,
+                  }}
+                >
+                  {paginated.map((article, idx) => (
+                    <ArticleCard
+                      key={article.slug}
+                      article={article}
+                      index={(safePage - 1) * ITEMS_PER_PAGE + idx}
+                    />
+                  ))}
+                </div>
+
+                {totalPages > 1 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                      marginTop: 48,
+                    }}
+                  >
+                    <button
+                      onClick={() => handlePageChange(safePage - 1)}
+                      disabled={safePage === 1}
+                      style={{
+                        width: 36,
+                        height: 36,
+                        border: "1px solid #E8E8E8",
+                        borderRadius: 6,
+                        background: "#fff",
+                        color: safePage === 1 ? "#C0C0C0" : "#212121",
+                        cursor: safePage === 1 ? "not-allowed" : "pointer",
+                        fontSize: 14,
+                        fontFamily: "inherit",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      &#8249;
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(
+                        (p) =>
+                          p === 1 ||
+                          p === totalPages ||
+                          Math.abs(p - safePage) <= 2,
+                      )
+                      .reduce<(number | "...")[]>((acc, p, i, arr) => {
+                        if (i > 0 && p - (arr[i - 1] as number) > 1) {
+                          acc.push("...");
+                        }
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((item, i) =>
+                        item === "..." ? (
+                          <span
+                            key={`ellipsis-${i}`}
+                            style={{
+                              width: 36,
+                              textAlign: "center",
+                              color: "#757575",
+                              fontSize: 14,
+                            }}
+                          >
+                            ...
+                          </span>
+                        ) : (
+                          <button
+                            key={item}
+                            onClick={() => handlePageChange(item as number)}
+                            style={{
+                              width: 36,
+                              height: 36,
+                              border:
+                                item === safePage
+                                  ? "1px solid #fe6e00"
+                                  : "1px solid #E8E8E8",
+                              borderRadius: 6,
+                              background:
+                                item === safePage ? "#fe6e00" : "#fff",
+                              color: item === safePage ? "#fff" : "#212121",
+                              cursor: "pointer",
+                              fontSize: 14,
+                              fontWeight: item === safePage ? 700 : 400,
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            {item}
+                          </button>
+                        ),
+                      )}
+
+                    <button
+                      onClick={() => handlePageChange(safePage + 1)}
+                      disabled={safePage === totalPages}
+                      style={{
+                        width: 36,
+                        height: 36,
+                        border: "1px solid #E8E8E8",
+                        borderRadius: 6,
+                        background: "#fff",
+                        color:
+                          safePage === totalPages ? "#C0C0C0" : "#212121",
+                        cursor:
+                          safePage === totalPages ? "not-allowed" : "pointer",
+                        fontSize: 14,
+                        fontFamily: "inherit",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      &#8250;
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
