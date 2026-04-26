@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Articles — 매일매일</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #fe6e00;
+      --bg: #ffffff;
+      --text: #212121;
+      --subtext: #757575;
+      --card-bg: #f9f9f9;
+      --code-bg: #f5f5f5;
+      --border: #e8e8e8;
+    }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── HEADER ── */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+    }
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 32px;
+    }
+    .logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+      letter-spacing: -0.5px;
+    }
+    .logo span { color: var(--primary); }
+    .header-nav {
+      display: flex;
+      gap: 28px;
+      list-style: none;
+    }
+    .header-nav a {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--subtext);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .header-nav a:hover,
+    .header-nav a.active { color: var(--text); }
+    .header-nav a.active { font-weight: 600; }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: var(--code-bg);
+      border: none;
+      cursor: pointer;
+      color: var(--subtext);
+      font-size: 16px;
+      transition: background 0.2s;
+    }
+    .icon-btn:hover { background: var(--border); }
+
+    /* ── HERO ── */
+    .hero {
+      height: 260px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #2d1a00 50%, #1a1a2e 100%);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 60% 50%, rgba(254,110,0,0.25) 0%, transparent 70%);
+    }
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+    }
+    .hero-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.5);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .hero-title {
+      font-size: 96px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -4px;
+      line-height: 1;
+    }
+    .hero-title span { color: var(--primary); }
+    .hero-count {
+      margin-top: 16px;
+      font-size: 14px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    /* ── SEARCH BAR ── */
+    .search-bar {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+    }
+    .search-bar-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .search-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .search-form {
+      display: flex;
+      gap: 8px;
+    }
+    .search-input {
+      width: 280px;
+      height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0 14px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus { border-color: var(--primary); }
+    .search-btn {
+      height: 38px;
+      padding: 0 18px;
+      background: #212121;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .search-btn:hover { background: #333; }
+
+    /* ── CONTENT AREA ── */
+    .content-area {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 36px 24px;
+      display: flex;
+      gap: 32px;
+      align-items: flex-start;
+    }
+
+    /* ── FILTER SIDEBAR ── */
+    .filter-sidebar {
+      width: 200px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 80px;
+    }
+    .sidebar-section {
+      margin-bottom: 28px;
+    }
+    .sidebar-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--subtext);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .filter-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .filter-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--subtext);
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+    }
+    .filter-item:hover { background: var(--code-bg); color: var(--text); }
+    .filter-item.active {
+      color: var(--primary);
+      border-left-color: var(--primary);
+      background: rgba(254,110,0,0.05);
+      font-weight: 600;
+    }
+    .filter-badge {
+      font-size: 11px;
+      font-weight: 700;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 12px;
+      padding: 1px 8px;
+      line-height: 18px;
+    }
+    .filter-badge.gray {
+      background: var(--code-bg);
+      color: var(--subtext);
+    }
+    .sidebar-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 20px 0;
+    }
+
+    /* ── ARTICLE GRID ── */
+    .article-grid-wrap { flex: 1; min-width: 0; }
+    .grid-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .grid-result-count {
+      font-size: 14px;
+      color: var(--subtext);
+    }
+    .grid-result-count strong { color: var(--text); }
+    .sort-select {
+      font-size: 13px;
+      font-family: inherit;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: var(--text);
+      background: #fff;
+      cursor: pointer;
+      outline: none;
+    }
+    .article-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    /* ── ARTICLE CARD ── */
+    .article-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    .article-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 0.5s ease, transform 0.5s ease, box-shadow 0.2s, filter 0.2s;
+    }
+    .article-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    .article-card.hidden { display: none; }
+
+    .card-thumb {
+      height: 180px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .card-thumb-keyword {
+      font-size: 22px;
+      font-weight: 800;
+      color: rgba(255,255,255,0.9);
+      text-align: center;
+      line-height: 1.3;
+      padding: 0 16px;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: -1px;
+    }
+    .card-category-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(4px);
+      color: #fff;
+      border-radius: 4px;
+      padding: 3px 8px;
+      border: 1px solid rgba(255,255,255,0.25);
+    }
+
+    .card-body {
+      padding: 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .card-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--subtext);
+    }
+    .card-stars { color: #FFA500; letter-spacing: 1px; }
+    .card-rating-text { margin-left: 6px; }
+    .card-read-time { font-size: 12px; color: var(--subtext); }
+
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      padding: 0 16px 16px;
+    }
+    .btn-detail {
+      flex: 1;
+      height: 34px;
+      background: var(--code-bg);
+      color: var(--text);
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+    .btn-detail:hover { background: #e8e8e8; }
+    .btn-save {
+      flex: 1;
+      height: 34px;
+      background: #212121;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-save:hover { background: #333; }
+
+    /* ── PAGINATION ── */
+    .pagination-wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 8px 24px 48px;
+      display: flex;
+      justify-content: center;
+    }
+    .pagination {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .page-btn {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--subtext);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .page-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .page-btn.active {
+      background: #212121;
+      border-color: #212121;
+      color: #fff;
+    }
+    .page-btn.arrow { font-size: 16px; }
+
+    /* ── RECOMMENDATION ── */
+    .recommendation {
+      background: var(--code-bg);
+      padding: 48px 0;
+    }
+    .recommendation-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .scroll-arrows {
+      display: flex;
+      gap: 8px;
+    }
+    .arrow-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #fff;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .arrow-btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .rec-scroll-wrap {
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      cursor: grab;
+    }
+    .rec-scroll-wrap::-webkit-scrollbar { display: none; }
+    .rec-list {
+      display: flex;
+      gap: 20px;
+      padding-bottom: 4px;
+    }
+    .rec-card {
+      width: 240px;
+      flex-shrink: 0;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      overflow: hidden;
+      transition: transform 0.2s;
+    }
+    .rec-card:hover { transform: translateY(-3px); }
+    .rec-thumb {
+      height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .rec-thumb-text {
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.9);
+      font-family: 'JetBrains Mono', monospace;
+      text-align: center;
+      padding: 0 12px;
+    }
+    .rec-body {
+      padding: 12px 14px;
+    }
+    .rec-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .rec-read-time {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--subtext);
+    }
+
+    /* ── CTA ── */
+    .cta-section {
+      background: #212121;
+      padding: 64px 24px;
+    }
+    .cta-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+    .cta-left { flex: 1; min-width: 260px; }
+    .cta-subtitle {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+    .cta-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.4;
+    }
+    .cta-right { flex: 1; min-width: 260px; }
+    .cta-desc {
+      font-size: 14px;
+      color: #aaa;
+      line-height: 1.7;
+      margin-bottom: 20px;
+    }
+    .cta-form {
+      display: flex;
+      gap: 8px;
+    }
+    .cta-email-input {
+      flex: 1;
+      height: 44px;
+      border: none;
+      border-radius: 6px;
+      padding: 0 14px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+    }
+    .cta-subscribe-btn {
+      height: 44px;
+      padding: 0 20px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: filter 0.2s;
+    }
+    .cta-subscribe-btn:hover { filter: brightness(1.1); }
+
+    /* ── FOOTER ── */
+    .site-footer {
+      background: #1A1A2E;
+      color: rgba(255,255,255,0.7);
+      padding: 56px 24px 32px;
+    }
+    .footer-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 48px;
+      margin-bottom: 48px;
+    }
+    .footer-logo {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+    .footer-logo span { color: var(--primary); }
+    .footer-desc {
+      font-size: 13px;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 20px;
+    }
+    .footer-contact {
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+    }
+    .footer-contact a {
+      color: rgba(255,255,255,0.7);
+      text-decoration: none;
+    }
+    .footer-contact a:hover { color: var(--primary); }
+    .footer-col-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 16px;
+    }
+    .footer-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .footer-links a {
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--primary); }
+    .footer-social {
+      display: flex;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .social-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,0.7);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .social-btn:hover { background: var(--primary); color: #fff; }
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .footer-copyright {
+      font-size: 12px;
+      color: rgba(255,255,255,0.35);
+    }
+    .footer-legal {
+      display: flex;
+      gap: 16px;
+    }
+    .footer-legal a {
+      font-size: 12px;
+      color: rgba(255,255,255,0.35);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer-legal a:hover { color: rgba(255,255,255,0.6); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 1024px) {
+      .article-grid { grid-template-columns: repeat(2, 1fr); }
+      .hero-title { font-size: 72px; }
+    }
+    @media (max-width: 768px) {
+      .filter-sidebar { display: none; }
+      .article-grid { grid-template-columns: repeat(2, 1fr); }
+      .hero-title { font-size: 56px; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 480px) {
+      .article-grid { grid-template-columns: 1fr; }
+      .hero-title { font-size: 40px; }
+      .footer-grid { grid-template-columns: 1fr; }
+      .search-input { width: 200px; }
+    }
+
+    /* ── SCROLL REVEAL ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="logo" href="#">매일<span>매일</span></a>
+      <ul class="header-nav">
+        <li><a href="#">홈</a></li>
+        <li><a href="#" class="active">아티클</a></li>
+        <li><a href="#">블로그</a></li>
+      </ul>
+      <div class="header-actions">
+        <button class="icon-btn" title="검색">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+        <button class="icon-btn" title="알림">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
+        <button class="icon-btn" title="프로필">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-content">
+      <p class="hero-label">매일매일 — 개발 지식</p>
+      <h1 class="hero-title">Arti<span>cles</span></h1>
+      <p class="hero-count">총 10개의 아티클</p>
+    </div>
+  </section>
+
+  <!-- SEARCH BAR -->
+  <div class="search-bar">
+    <div class="search-bar-inner">
+      <span class="search-title">매일 하나씩, 찾아보세요</span>
+      <div class="search-form">
+        <input class="search-input" type="text" id="searchInput" placeholder="키워드를 입력하세요" />
+        <button class="search-btn" onclick="handleSearch()">검색</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENT AREA -->
+  <div class="content-area">
+
+    <!-- FILTER SIDEBAR -->
+    <aside class="filter-sidebar">
+      <div class="sidebar-section">
+        <p class="sidebar-section-title">Category</p>
+        <ul class="filter-list">
+          <li class="filter-item active" data-filter="all" onclick="filterCards('all', this)">
+            전체 <span class="filter-badge">10</span>
+          </li>
+          <li class="filter-item" data-filter="프론트엔드" onclick="filterCards('프론트엔드', this)">
+            프론트엔드 <span class="filter-badge">10</span>
+          </li>
+          <li class="filter-item" data-filter="CS" onclick="filterCards('CS', this)">
+            CS <span class="filter-badge gray">0</span>
+          </li>
+          <li class="filter-item" data-filter="개발도구" onclick="filterCards('개발도구', this)">
+            개발도구 <span class="filter-badge gray">0</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <div class="sidebar-section">
+        <p class="sidebar-section-title">정렬</p>
+        <ul class="filter-list">
+          <li class="filter-item active" style="border-left-color: var(--primary); color: var(--primary);" onclick="return false">최신순</li>
+          <li class="filter-item" onclick="return false">인기순</li>
+          <li class="filter-item" onclick="return false">난이도별</li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- ARTICLE GRID -->
+    <div class="article-grid-wrap">
+      <div class="grid-header">
+        <p class="grid-result-count"><strong id="resultCount">10</strong>개의 아티클</p>
+        <select class="sort-select">
+          <option>최신순</option>
+          <option>인기순</option>
+          <option>읽기 짧은 순</option>
+        </select>
+      </div>
+
+      <div class="article-grid" id="articleGrid">
+
+        <!-- CARD 1 -->
+        <div class="article-card" data-category="프론트엔드" data-title="Next.js의 SSG, SSR, ISR은 어떻게 다른가요?">
+          <div class="card-thumb" style="background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);">
+            <span class="card-thumb-keyword">SSG<br/>SSR<br/>ISR</span>
+            <span class="card-category-badge">프론트엔드</span>
+          </div>
+          <div class="card-body">
+            <p class="card-title">Next.js의 SSG, SSR, ISR은 어떻게 다른가요?</p>
+            <div class="card-meta">
+              <span>
+                <span class="card-stars">★★★★★</span>
+                <span class="card-rating-text">4.9 (2.1k)</span>
+              </span>
+              <span class="card-read-time">5분 읽기</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <a class="btn-detail" href="nextjs-ssg-ssr-isr-difference.html">자세히 보기</a>
+            <button class="btn-save">저장하기</button>
+          </div>
+        </div>
+
+        <!-- CARD 2 -->
+        <div class="article-card" data-category="프론트엔드" data-title="Next.js에서 params와 useSearchParams는 어떻게 다른가요?">
+          <div class="card-thumb" style="background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);">
+            <span class="card-thumb-keyword">params<br/>useSearch<br/>Params</span>
+            <span class="card-category-badge">프론트엔드</span>
+          </div>
+          <div class="card-body">
+            <p class="card-title">Next.js에서 params와 useSearchParams는 어떻게 다른가요?</p>
+            <div class="card-meta">
+              <span>
+                <span class="card-stars">★★★★★</span>
+                <span class="card-rating-text">4.8 (1.8k)</span>
+              </span>
+              <span class="card-read-time">4분 읽기</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <a class="btn-detail" href="nextjs-params-vs-usesearchparams.html">자세히 보기</a>
+            <button class="btn-save">저장하기</button>
+          </div>
+        </div>
+
+        <!-- CARD 3 -->
+        <div class="article-card" data-category="프론트엔드" data-title="Next.js App Router에서 error, loading, not-found 파일은 어떻게 동작하나요?">
+          <div class="card-thumb" style="background: linear-gradient(135deg, #2d1b69, #11998e, #38ef7d);">
+            <span class="card-thumb-keyword">error<br/>loading<br/>not-found</span>
+            <span class="card-category-badge">프론트엔드</span>
+          </div>
+          <div class="card-body">
+            <p class="card-title">Next.js App Router에서 error, loading, not-found 파일은 어떻게 동작하나요?</p>
+            <div class="card-meta">
+              <span>
+                <span class="card-stars">★★★★★</span>
+                <span class="card-rating-text">4.9 (1.5k)</span>
+              </span>
+              <span class="card-read-time">5분 읽기</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <a class="btn-detail" href="nextjs-error-loading-not-found.html">자세히 보기</a>
+            <button class="btn-save">저장하기</button>
+          </div>
+        </div>
+
+        <!-- CARD 4 -->
+        <div class="article-card" data-category="프론트엔드" data-title="Next.js에서 [[...slug]]는 [...slug]와 어떻게 다른가요?">
+          <div class="card-thumb" style="background: linear-gradient(135deg, #4a0072, #7b1fa2, #ce93d8);">
+            <span class="card-thumb-keyword">[[...slug]]<br/>vs<br/>[...slug]</span>
+            <span class="card-category-badge">프론트엔드</span>
+          </div>
+          <div class="card-body">
+            <p class="card-title">Next.js에서 [[...slug]]는 [...slug]와 어떻게 다른가요?</p>
+            <div class="card-meta">
+              <span>
+                <span class="card-stars">★★★★★</span>
+                <span class="card-rating-text">4.7 (1.3k)</span>
+              </span>
+              <span class="card-read-time">4분 읽기</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <a class="btn-detail" href="nextjs-optional-catch-all-routes.html">자세히 보기</a>
+            <button class="btn-save">저장하기</button>
+          </div>
+        </div>
+
+        <!-- CARD 5 -->
+        <div class="article-card" data-category="프론트엔드" data-title="React에서 왜 상태를 직접 변경하면 안 되나요?">
+          <div class="card-thumb" style="background: linear-gradient(135deg, #1a237e, #283593, #5c6bc0);">
+            <span class="card-thumb-keyword">불변성<br/>Immutability</span>
+            <span class="card-category-badge">프론트엔드</span>
+          </div>
+          <div class="card-body">
+            <p class="card-title">React에서 왜 상태를 직접 변경하면 안 되나요?</p>
+            <div class="card-meta">
+              <span>
+                <span class="card-stars">★★★★★</span>
+                <span class="card-rating-text">4.9 (2.4k)</span>
+              </span>
+              <span class="card-read-time">4분 읽기</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <a class="btn-detail" href="react-why-immutability.html">자세히 보기</a>
+            <button class="btn-save">저장하기</button>
+          </div>
+        </div>
+
+        <!-- CARD 6 -->
+        <div class="article-card" data-category="프론트엔드" data-title="React에서 useCallback, useMemo, React.memo는 언제 써야 하나요?">
+          <div class="card-thumb" style="background: linear-gradient(135deg, #bf360c, #e64a19, #ff7043);">
+            <span class="card-thumb-keyword">memo<br/>useCallback<br/>useMemo</span>
+            <span class="card-category-badge">프론트엔드</span>
+          </div>
+          <div class="card-body">
+            <p class="card-title">React에서 useCallback, useMemo, React.memo는 언제 써야 하나요?</p>
+            <div class="card-meta">
+              <span>
+                <span class="card-stars">★★★★★</span>
+                <span class="card-rating-text">4.8 (2.0k)</span>
+              </span>
+              <span class="card-read-time">5분 읽기</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <a class="btn-detail" href="react-usecallback-usememo-reactmemo.html">자세히 보기</a>
+            <button class="btn-save">저장하기</button>
+          </div>
+        </div>
+
+        <!-- CARD 7 -->
+        <div class="article-card" data-category="프론트엔드" data-title="React 컴포넌트는 어떤 조건에서 리렌더링되나요?">
+          <div class="card-thumb" style="background: linear-gradient(135deg, #004d40, #00695c, #26a69a);">
+            <span class="card-thumb-keyword">Re-render<br/>조건</span>
+            <span class="card-category-badge">프론트엔드</span>
+          </div>
+          <div class="card-body">
+            <p class="card-title">React 컴포넌트는 어떤 조건에서 리렌더링되나요?</p>
+            <div class="card-meta">
+              <span>
+                <span class="card-stars">★★★★★</span>
+                <span class="card-rating-text">4.9 (1.9k)</span>
+              </span>
+              <span class="card-read-time">5분 읽기</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <a class="btn-detail" href="react-rerender-conditions.html">자세히 보기</a>
+            <button class="btn-save">저장하기</button>
+          </div>
+        </div>
+
+        <!-- CARD 8 -->
+        <div class="article-card" data-category="프론트엔드" data-title="React에서 useRef는 언제 사용하나요?">
+          <div class="card-thumb" style="background: linear-gradient(135deg, #33691e, #558b2f, #8bc34a);">
+            <span class="card-thumb-keyword">useRef<br/>.current</span>
+            <span class="card-category-badge">프론트엔드</span>
+          </div>
+          <div class="card-body">
+            <p class="card-title">React에서 useRef는 언제 사용하나요?</p>
+            <div class="card-meta">
+              <span>
+                <span class="card-stars">★★★★★</span>
+                <span class="card-rating-text">4.7 (1.6k)</span>
+              </span>
+              <span class="card-read-time">3분 읽기</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <a class="btn-detail" href="react-useref.html">자세히 보기</a>
+            <button class="btn-save">저장하기</button>
+          </div>
+        </div>
+
+        <!-- CARD 9 -->
+        <div class="article-card" data-category="프론트엔드" data-title="TanStack Query에서 queryKey와 queryFn은 어떻게 동작하나요?">
+          <div class="card-thumb" style="background: linear-gradient(135deg, #e65100, #ef6c00, #fb8c00);">
+            <span class="card-thumb-keyword">queryKey<br/>queryFn</span>
+            <span class="card-category-badge">프론트엔드</span>
+          </div>
+          <div class="card-body">
+            <p class="card-title">TanStack Query에서 queryKey와 queryFn은 어떻게 동작하나요?</p>
+            <div class="card-meta">
+              <span>
+                <span class="card-stars">★★★★★</span>
+                <span class="card-rating-text">4.8 (1.4k)</span>
+              </span>
+              <span class="card-read-time">5분 읽기</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <a class="btn-detail" href="tanstack-query-key-and-fn.html">자세히 보기</a>
+            <button class="btn-save">저장하기</button>
+          </div>
+        </div>
+
+        <!-- CARD 10 -->
+        <div class="article-card" data-category="프론트엔드" data-title="TanStack Query에서 useMutation과 QueryClient 메서드는 어떻게 사용하나요?">
+          <div class="card-thumb" style="background: linear-gradient(135deg, #880e4f, #ad1457, #e91e63);">
+            <span class="card-thumb-keyword">useMutation<br/>QueryClient</span>
+            <span class="card-category-badge">프론트엔드</span>
+          </div>
+          <div class="card-body">
+            <p class="card-title">TanStack Query에서 useMutation과 QueryClient 메서드는 어떻게 사용하나요?</p>
+            <div class="card-meta">
+              <span>
+                <span class="card-stars">★★★★★</span>
+                <span class="card-rating-text">4.9 (1.7k)</span>
+              </span>
+              <span class="card-read-time">5분 읽기</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <a class="btn-detail" href="tanstack-query-methods.html">자세히 보기</a>
+            <button class="btn-save">저장하기</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGINATION -->
+  <div class="pagination-wrap">
+    <nav class="pagination">
+      <button class="page-btn arrow">&lsaquo;</button>
+      <button class="page-btn active">1</button>
+      <button class="page-btn arrow">&rsaquo;</button>
+    </nav>
+  </div>
+
+  <!-- RECOMMENDATION -->
+  <section class="recommendation">
+    <div class="recommendation-inner">
+      <div class="section-header reveal">
+        <h2 class="section-title">이런 아티클은 어때요?</h2>
+        <div class="scroll-arrows">
+          <button class="arrow-btn" id="recPrev" title="이전">&#8592;</button>
+          <button class="arrow-btn" id="recNext" title="다음">&#8594;</button>
+        </div>
+      </div>
+      <div class="rec-scroll-wrap reveal" id="recScroll">
+        <div class="rec-list">
+
+          <div class="rec-card">
+            <div class="rec-thumb" style="background: linear-gradient(135deg, #1a237e, #3949ab);">
+              <span class="rec-thumb-text">불변성<br/>Immutability</span>
+            </div>
+            <div class="rec-body">
+              <p class="rec-title">React에서 왜 상태를 직접 변경하면 안 되나요?</p>
+              <p class="rec-read-time">4분 읽기</p>
+            </div>
+          </div>
+
+          <div class="rec-card">
+            <div class="rec-thumb" style="background: linear-gradient(135deg, #bf360c, #e64a19);">
+              <span class="rec-thumb-text">memo<br/>useCallback</span>
+            </div>
+            <div class="rec-body">
+              <p class="rec-title">useCallback, useMemo, React.memo는 언제 써야 하나요?</p>
+              <p class="rec-read-time">5분 읽기</p>
+            </div>
+          </div>
+
+          <div class="rec-card">
+            <div class="rec-thumb" style="background: linear-gradient(135deg, #0f2027, #2c5364);">
+              <span class="rec-thumb-text">SSG<br/>SSR / ISR</span>
+            </div>
+            <div class="rec-body">
+              <p class="rec-title">Next.js의 SSG, SSR, ISR은 어떻게 다른가요?</p>
+              <p class="rec-read-time">5분 읽기</p>
+            </div>
+          </div>
+
+          <div class="rec-card">
+            <div class="rec-thumb" style="background: linear-gradient(135deg, #e65100, #fb8c00);">
+              <span class="rec-thumb-text">queryKey<br/>queryFn</span>
+            </div>
+            <div class="rec-body">
+              <p class="rec-title">TanStack Query에서 queryKey와 queryFn은 어떻게 동작하나요?</p>
+              <p class="rec-read-time">5분 읽기</p>
+            </div>
+          </div>
+
+          <div class="rec-card">
+            <div class="rec-thumb" style="background: linear-gradient(135deg, #004d40, #26a69a);">
+              <span class="rec-thumb-text">Re-render<br/>조건</span>
+            </div>
+            <div class="rec-body">
+              <p class="rec-title">React 컴포넌트는 어떤 조건에서 리렌더링되나요?</p>
+              <p class="rec-read-time">5분 읽기</p>
+            </div>
+          </div>
+
+          <div class="rec-card">
+            <div class="rec-thumb" style="background: linear-gradient(135deg, #33691e, #8bc34a);">
+              <span class="rec-thumb-text">useRef<br/>.current</span>
+            </div>
+            <div class="rec-body">
+              <p class="rec-title">React에서 useRef는 언제 사용하나요?</p>
+              <p class="rec-read-time">3분 읽기</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="cta-inner reveal">
+      <div class="cta-left">
+        <p class="cta-subtitle">뉴스레터 구독</p>
+        <h2 class="cta-title">매일 새로운 아티클을<br/>받아보세요</h2>
+      </div>
+      <div class="cta-right">
+        <p class="cta-desc">매일 하나씩, 핵심 개발 지식을 이메일로 전달해드립니다.<br/>구독 취소는 언제든지 가능합니다.</p>
+        <div class="cta-form">
+          <input class="cta-email-input" type="email" placeholder="이메일 주소" />
+          <button class="cta-subscribe-btn">구독하기</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div>
+          <p class="footer-logo">매일<span>매일</span></p>
+          <p class="footer-desc">주니어~미드레벨 프론트엔드 개발자를 위한<br/>기술 지식 공유 플랫폼입니다.<br/>매일 하나의 개념을 짧고 명확하게 전달합니다.</p>
+          <p class="footer-contact">Contact: <a href="mailto:kangmu238@gmail.com">kangmu238@gmail.com</a></p>
+        </div>
+        <div>
+          <p class="footer-col-title">Support</p>
+          <ul class="footer-links">
+            <li><a href="#">문의하기</a></li>
+            <li><a href="#">서비스 피드백</a></li>
+            <li><a href="#">팀 소개</a></li>
+          </ul>
+        </div>
+        <div>
+          <p class="footer-col-title">Social Media</p>
+          <div class="footer-social">
+            <a class="social-btn" href="https://github.com/wookminkang" target="_blank" rel="noopener">GH</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-copyright">Copyright &copy; 2026 매일매일. All rights reserved.</p>
+        <div class="footer-legal">
+          <a href="#">이용약관</a>
+          <a href="#">개인정보처리방침</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ── SCROLL REVEAL ──
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+    // ── ARTICLE CARD REVEAL ──
+    const cardObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry, i) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => {
+            entry.target.classList.add('visible');
+          }, i * 60);
+          cardObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.05 });
+
+    document.querySelectorAll('.article-card').forEach(card => cardObserver.observe(card));
+
+    // ── FILTER ──
+    function filterCards(category, el) {
+      document.querySelectorAll('.filter-item').forEach(item => item.classList.remove('active'));
+      el.classList.add('active');
+
+      const cards = document.querySelectorAll('.article-card');
+      let count = 0;
+      cards.forEach(card => {
+        const cat = card.dataset.category;
+        if (category === 'all' || cat === category) {
+          card.classList.remove('hidden');
+          count++;
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+      document.getElementById('resultCount').textContent = count;
+    }
+
+    // ── SEARCH ──
+    function handleSearch() {
+      const query = document.getElementById('searchInput').value.trim().toLowerCase();
+      const cards = document.querySelectorAll('.article-card');
+      let count = 0;
+      cards.forEach(card => {
+        const title = card.dataset.title.toLowerCase();
+        const cat = card.dataset.category.toLowerCase();
+        if (!query || title.includes(query) || cat.includes(query)) {
+          card.classList.remove('hidden');
+          count++;
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+      document.getElementById('resultCount').textContent = count;
+    }
+
+    document.getElementById('searchInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleSearch();
+    });
+
+    // ── RECOMMENDATION SCROLL ──
+    const recScroll = document.getElementById('recScroll');
+    document.getElementById('recNext').addEventListener('click', () => {
+      recScroll.scrollBy({ left: 260, behavior: 'smooth' });
+    });
+    document.getElementById('recPrev').addEventListener('click', () => {
+      recScroll.scrollBy({ left: -260, behavior: 'smooth' });
+    });
+
+    // drag to scroll
+    let isDown = false, startX, scrollLeft;
+    recScroll.addEventListener('mousedown', e => {
+      isDown = true;
+      recScroll.style.cursor = 'grabbing';
+      startX = e.pageX - recScroll.offsetLeft;
+      scrollLeft = recScroll.scrollLeft;
+    });
+    recScroll.addEventListener('mouseleave', () => { isDown = false; recScroll.style.cursor = 'grab'; });
+    recScroll.addEventListener('mouseup', () => { isDown = false; recScroll.style.cursor = 'grab'; });
+    recScroll.addEventListener('mousemove', e => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - recScroll.offsetLeft;
+      recScroll.scrollLeft = scrollLeft - (x - startX) * 1.2;
+    });
+  </script>
+</body>
+</html>

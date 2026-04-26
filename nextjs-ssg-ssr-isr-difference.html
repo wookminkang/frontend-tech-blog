@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Next.js의 SSG, SSR, ISR은 어떻게 다른가요? — 매일매일</title>
+  <meta name="description" content="Next.js의 세 가지 렌더링 전략(SSG, SSR, ISR)의 동작 방식과 올바른 선택 기준을 설명합니다." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #fe6e00;
+      --primary-light: #fff3e8;
+      --bg: #ffffff;
+      --surface: #F9F9F9;
+      --text: #212121;
+      --text-secondary: #757575;
+      --border: #E0E0E0;
+      --code-bg: #1e1e1e;
+      --code-bad: #e05252;
+      --code-good: #4caf7d;
+      --footer-bg: #1A1A2E;
+      --max-width: 720px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 16px;
+      line-height: 1.8;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    /* 읽기 진행 바 */
+    #progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      width: 0%;
+      background: var(--primary);
+      z-index: 1000;
+      transition: width 0.1s linear;
+    }
+
+    /* 헤더 */
+    header {
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .header-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+      letter-spacing: -0.3px;
+    }
+
+    .logo span {
+      color: var(--primary);
+    }
+
+    /* 본문 레이아웃 */
+    main {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 56px 24px 80px;
+    }
+
+    /* 카테고리 뱃지 */
+    .category-badge {
+      display: inline-block;
+      padding: 6px 14px 6px 12px;
+      background: var(--primary-light);
+      border-left: 4px solid var(--primary);
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 0 4px 4px 0;
+      margin-bottom: 20px;
+    }
+
+    /* 제목 */
+    h1 {
+      font-size: 30px;
+      font-weight: 700;
+      line-height: 1.3;
+      letter-spacing: -0.5px;
+      color: var(--text);
+      margin-bottom: 32px;
+    }
+
+    /* 구분선 */
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 40px 0;
+    }
+
+    /* 섹션 제목 */
+    h2 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 16px;
+      line-height: 1.3;
+    }
+
+    /* 본문 텍스트 */
+    p {
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+
+    ul, ol {
+      padding-left: 24px;
+      margin-bottom: 16px;
+    }
+
+    li {
+      margin-bottom: 8px;
+      line-height: 1.8;
+    }
+
+    /* 인라인 코드 */
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* 코드 블록 공통 */
+    .code-block {
+      margin: 24px 0;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .code-header {
+      padding: 10px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .code-header::before {
+      content: '';
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .code-block.bad .code-header {
+      background: #2a1a1a;
+      color: var(--code-bad);
+      border-bottom: 2px solid var(--code-bad);
+    }
+
+    .code-block.bad .code-header::before {
+      background: var(--code-bad);
+    }
+
+    .code-block.good .code-header {
+      background: #1a2a1e;
+      color: var(--code-good);
+      border-bottom: 2px solid var(--code-good);
+    }
+
+    .code-block.good .code-header::before {
+      background: var(--code-good);
+    }
+
+    pre {
+      background: var(--code-bg);
+      padding: 20px;
+      overflow-x: auto;
+      margin: 0;
+    }
+
+    pre code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #d4d4d4;
+      background: none;
+      padding: 0;
+      border-radius: 0;
+    }
+
+    /* 주석 색상 */
+    .comment { color: #6a9955; }
+    .keyword { color: #569cd6; }
+    .string { color: #ce9178; }
+    .func { color: #dcdcaa; }
+    .type { color: #4ec9b0; }
+    .number { color: #b5cea8; }
+    .prop { color: #9cdcfe; }
+
+    /* 요약 박스 */
+    .summary-box {
+      background: var(--surface);
+      border-left: 4px solid var(--primary);
+      border-radius: 0 8px 8px 0;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+
+    .summary-box p {
+      margin-bottom: 0;
+    }
+
+    /* 비교 테이블 */
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 24px 0;
+      font-size: 14px;
+    }
+
+    .comparison-table th {
+      background: var(--surface);
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .comparison-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .comparison-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .badge-ssg, .badge-isr, .badge-ssr {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge-ssg { background: #e8f4fd; color: #1565c0; }
+    .badge-isr { background: #fff3e8; color: #e65100; }
+    .badge-ssr { background: #fce4ec; color: #c62828; }
+
+    /* 설명 박스 */
+    .info-grid {
+      display: grid;
+      gap: 16px;
+      margin: 24px 0;
+    }
+
+    .info-card {
+      background: var(--surface);
+      border-radius: 8px;
+      padding: 20px;
+      border-top: 3px solid var(--border);
+    }
+
+    .info-card.ssg { border-top-color: #1565c0; }
+    .info-card.isr { border-top-color: var(--primary); }
+    .info-card.ssr { border-top-color: #c62828; }
+
+    .info-card h3 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .info-card p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 0;
+      line-height: 1.7;
+    }
+
+    /* 추가 학습 자료 */
+    .resource-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .resource-list li {
+      margin-bottom: 12px;
+    }
+
+    .resource-list a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 15px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .resource-list a::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background: var(--primary);
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .resource-list a:hover {
+      text-decoration: underline;
+    }
+
+    /* 액션 버튼 */
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 40px;
+    }
+
+    .btn {
+      padding: 10px 24px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Pretendard', sans-serif;
+      transition: all 0.15s ease;
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+      border: 1px solid var(--primary);
+    }
+
+    .btn-primary:hover {
+      background: #e56200;
+    }
+
+    /* 푸터 */
+    footer {
+      background: var(--footer-bg);
+      color: #ffffff;
+      padding: 48px 24px 32px;
+    }
+
+    .footer-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      margin-bottom: 40px;
+    }
+
+    .footer-col h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #9e9e9e;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 12px;
+    }
+
+    .footer-col p,
+    .footer-col a {
+      font-size: 14px;
+      color: #bdbdbd;
+      text-decoration: none;
+      display: block;
+      margin-bottom: 6px;
+      line-height: 1.7;
+    }
+
+    .footer-col a:hover {
+      color: #ffffff;
+    }
+
+    .footer-divider {
+      border: none;
+      border-top: 1px solid #2e2e40;
+      margin-bottom: 20px;
+    }
+
+    .footer-copyright {
+      font-size: 13px;
+      color: #616161;
+      text-align: center;
+    }
+
+    /* 스크롤 reveal 애니메이션 */
+    .reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* 반응형 */
+    @media (max-width: 640px) {
+      h1 { font-size: 24px; }
+      main { padding: 40px 20px 64px; }
+      .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+      .actions { flex-direction: column; }
+      .btn { text-align: center; }
+      .comparison-table { font-size: 13px; }
+      .comparison-table th,
+      .comparison-table td { padding: 10px 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 읽기 진행 바 -->
+  <div id="progress-bar"></div>
+
+  <!-- 헤더 -->
+  <header>
+    <div class="header-inner">
+      <a href="#" class="logo">매일<span>매일</span></a>
+    </div>
+  </header>
+
+  <!-- 본문 -->
+  <main>
+
+    <!-- 카테고리 뱃지 -->
+    <div class="category-badge reveal">프론트엔드에 관련한 질문이에요.</div>
+
+    <!-- 제목 -->
+    <h1 class="reveal">Next.js의 SSG, SSR, ISR은 어떻게 다른가요?</h1>
+
+    <hr class="reveal" />
+
+    <!-- 핵심 요약 -->
+    <section class="reveal">
+      <h2>핵심 요약</h2>
+      <div class="summary-box">
+        <p>
+          Next.js는 세 가지 렌더링 전략을 제공합니다.
+          <strong>SSG</strong>는 빌드 시점에 HTML을 생성하고,
+          <strong>SSR</strong>은 요청마다 HTML을 새로 생성하며,
+          <strong>ISR</strong>은 SSG의 성능을 유지하면서 일정 주기로 페이지를 재생성합니다.
+          콘텐츠의 변경 빈도와 데이터 최신성 요구 수준에 따라 전략을 선택해야 합니다.
+        </p>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 왜 이런 문제가 발생하나요 -->
+    <section class="reveal">
+      <h2>왜 이런 문제가 발생하나요?</h2>
+      <p>
+        렌더링 전략을 구분하지 않고 모든 페이지에 동일한 방식을 적용하면
+        성능 저하나 오래된 데이터 노출 문제가 생깁니다.
+        각 전략의 동작 방식을 이해하는 것이 중요합니다.
+      </p>
+
+      <div class="info-grid">
+        <div class="info-card ssg">
+          <h3>SSG — Static Site Generation</h3>
+          <p>
+            <code>getStaticProps</code>를 사용합니다. 빌드 시점에 데이터를 가져와 HTML을 생성합니다.
+            이후 요청에는 이미 만들어진 HTML을 그대로 제공하므로 응답이 매우 빠릅니다.
+            단, 빌드 이후 데이터가 바뀌어도 페이지는 업데이트되지 않습니다.
+          </p>
+        </div>
+        <div class="info-card ssr">
+          <h3>SSR — Server-Side Rendering</h3>
+          <p>
+            <code>getServerSideProps</code>를 사용합니다. 사용자가 페이지를 요청할 때마다
+            서버에서 데이터를 가져와 HTML을 생성합니다. 항상 최신 데이터를 보여줄 수 있지만,
+            요청마다 서버 부하가 발생합니다.
+          </p>
+        </div>
+        <div class="info-card isr">
+          <h3>ISR — Incremental Static Regeneration</h3>
+          <p>
+            <code>getStaticProps</code>에 <code>revalidate</code> 옵션을 추가합니다.
+            SSG처럼 빌드 시 HTML을 만들되, 설정한 시간이 지나면 백그라운드에서 페이지를 재생성합니다.
+            빠른 응답 속도와 주기적인 데이터 갱신을 동시에 얻을 수 있습니다.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- Bad Example -->
+    <section class="reveal">
+      <h2>예시 코드 — 잘못된 사용</h2>
+
+      <div class="code-block bad">
+        <div class="code-header">Bad — 정적 콘텐츠에 SSR 적용</div>
+        <pre><code><span class="comment">// 블로그 포스트 목록 — 자주 바뀌지 않는 데이터임에도 SSR 적용</span>
+<span class="comment">// 매 요청마다 서버에서 데이터를 가져오므로 불필요한 서버 부하가 발생합니다.</span>
+<span class="keyword">export async function</span> <span class="func">getServerSideProps</span>() {
+  <span class="keyword">const</span> res = <span class="keyword">await</span> <span class="func">fetch</span>(<span class="string">'https://api.example.com/posts'</span>);
+  <span class="keyword">const</span> posts = <span class="keyword">await</span> res.<span class="func">json</span>();
+
+  <span class="keyword">return</span> {
+    <span class="prop">props</span>: { posts },
+  };
+}
+
+<span class="keyword">export default function</span> <span class="func">BlogList</span>({ posts }) {
+  <span class="keyword">return</span> (
+    &lt;<span class="type">ul</span>&gt;
+      {posts.<span class="func">map</span>((post) =&gt; (
+        &lt;<span class="type">li</span> <span class="prop">key</span>={post.id}&gt;{post.title}&lt;/<span class="type">li</span>&gt;
+      ))}
+    &lt;/<span class="type">ul</span>&gt;
+  );
+}</code></pre>
+      </div>
+
+      <p>
+        블로그 포스트 목록은 하루에 몇 번 바뀌지 않는 데이터입니다.
+        그럼에도 <code>getServerSideProps</code>를 사용하면, 페이지를 방문할 때마다
+        서버가 API를 호출하고 HTML을 새로 생성합니다.
+        트래픽이 늘어날수록 서버 비용과 응답 지연이 함께 증가합니다.
+      </p>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- Good Example -->
+    <section class="reveal">
+      <h2>올바른 사용법</h2>
+
+      <div class="code-block good">
+        <div class="code-header">Good — SSG: 변경이 없는 정적 페이지</div>
+        <pre><code><span class="keyword">export async function</span> <span class="func">getStaticProps</span>() {
+  <span class="keyword">const</span> res = <span class="keyword">await</span> <span class="func">fetch</span>(<span class="string">'https://api.example.com/docs'</span>);
+  <span class="keyword">const</span> docs = <span class="keyword">await</span> res.<span class="func">json</span>();
+
+  <span class="keyword">return</span> {
+    <span class="prop">props</span>: { docs },
+  };
+}</code></pre>
+      </div>
+
+      <div class="code-block good">
+        <div class="code-header">Good — ISR: 주기적으로 갱신이 필요한 페이지</div>
+        <pre><code><span class="keyword">export async function</span> <span class="func">getStaticProps</span>() {
+  <span class="keyword">const</span> res = <span class="keyword">await</span> <span class="func">fetch</span>(<span class="string">'https://api.example.com/posts'</span>);
+  <span class="keyword">const</span> posts = <span class="keyword">await</span> res.<span class="func">json</span>();
+
+  <span class="keyword">return</span> {
+    <span class="prop">props</span>: { posts },
+    <span class="prop">revalidate</span>: <span class="number">60</span>, <span class="comment">// 60초마다 백그라운드에서 페이지 재생성</span>
+  };
+}</code></pre>
+      </div>
+
+      <div class="code-block good">
+        <div class="code-header">Good — SSR: 요청마다 다른 데이터가 필요한 페이지</div>
+        <pre><code><span class="keyword">export async function</span> <span class="func">getServerSideProps</span>(context) {
+  <span class="keyword">const</span> { userId } = context.query;
+  <span class="keyword">const</span> res = <span class="keyword">await</span> <span class="func">fetch</span>(<span class="string">`https://api.example.com/user/${userId}`</span>);
+  <span class="keyword">const</span> user = <span class="keyword">await</span> res.<span class="func">json</span>();
+
+  <span class="keyword">return</span> {
+    <span class="prop">props</span>: { user },
+  };
+}</code></pre>
+      </div>
+
+      <p>세 가지 전략을 콘텐츠 성격에 맞게 선택하면 됩니다.</p>
+      <ul>
+        <li>약관, 소개 페이지처럼 거의 바뀌지 않는 페이지 — <strong>SSG</strong></li>
+        <li>블로그 목록, 상품 목록처럼 가끔 업데이트되는 페이지 — <strong>ISR</strong></li>
+        <li>장바구니, 사용자 대시보드처럼 요청마다 다른 데이터가 필요한 페이지 — <strong>SSR</strong></li>
+      </ul>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 정리 -->
+    <section class="reveal">
+      <h2>정리</h2>
+      <p>
+        Next.js의 렌더링 전략은 성능과 데이터 최신성 사이의 균형을 맞추기 위해 존재합니다.
+        콘텐츠의 변경 주기와 데이터 최신성 요구 수준을 기준으로 전략을 선택하세요.
+      </p>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>전략</th>
+            <th>생성 시점</th>
+            <th>최신성</th>
+            <th>서버 부하</th>
+            <th>적합한 페이지</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge-ssg">SSG</span></td>
+            <td>빌드 시</td>
+            <td>낮음</td>
+            <td>없음</td>
+            <td>정적 문서, 소개 페이지</td>
+          </tr>
+          <tr>
+            <td><span class="badge-isr">ISR</span></td>
+            <td>빌드 + 주기적 재생성</td>
+            <td>중간</td>
+            <td>낮음</td>
+            <td>블로그, 상품 목록</td>
+          </tr>
+          <tr>
+            <td><span class="badge-ssr">SSR</span></td>
+            <td>요청마다</td>
+            <td>높음</td>
+            <td>높음</td>
+            <td>사용자 대시보드, 실시간 데이터</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 추가 학습 자료 -->
+    <section class="reveal">
+      <h2>추가 학습 자료 공유합니다.</h2>
+      <ul class="resource-list">
+        <li>
+          <a href="https://nextjs.org/docs/pages/building-your-application/data-fetching" target="_blank" rel="noopener noreferrer">
+            Next.js 공식 문서 — Data Fetching
+          </a>
+        </li>
+        <li>
+          <a href="https://nextjs.org/docs/pages/building-your-application/data-fetching/incremental-static-regeneration" target="_blank" rel="noopener noreferrer">
+            Next.js 공식 문서 — Incremental Static Regeneration
+          </a>
+        </li>
+      </ul>
+    </section>
+
+    <!-- 액션 버튼 -->
+    <div class="actions reveal">
+      <button class="btn btn-secondary">콘텐츠 피드백</button>
+      <button class="btn btn-primary">공유하기</button>
+    </div>
+
+  </main>
+
+  <!-- 푸터 -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <p>team.maeilmail@gmail.com</p>
+        </div>
+        <div class="footer-col">
+          <h4>Socials</h4>
+          <a href="#">Velog</a>
+          <a href="#">GitHub</a>
+        </div>
+        <div class="footer-col">
+          <h4>Etc</h4>
+          <a href="#">팀 소개</a>
+          <a href="#">서비스 피드백</a>
+        </div>
+      </div>
+      <hr class="footer-divider" />
+      <p class="footer-copyright">Copyright &copy; 2026 매일매일. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    // 읽기 진행 바
+    const progressBar = document.getElementById('progress-bar');
+
+    window.addEventListener('scroll', () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+      progressBar.style.width = progress + '%';
+    });
+
+    // 스크롤 reveal
+    const reveals = document.querySelectorAll('.reveal');
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    reveals.forEach((el) => observer.observe(el));
+  </script>
+
+</body>
+</html>

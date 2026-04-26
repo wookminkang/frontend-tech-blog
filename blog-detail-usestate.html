@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>왜 useState를 조건문 안에서 사용하면 안 되나요? | 매일매일</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+
+  <style>
+    :root {
+      --primary:       #fe6e00;
+      --primary-dim:   rgba(254,110,0,0.10);
+      --primary-glow:  rgba(254,110,0,0.18);
+      --primary-hover: #e56200;
+      --bg:            #ffffff;
+      --dark:          #111111;
+      --text:          #212121;
+      --text-sub:      #757575;
+      --card:          #F9F9F9;
+      --border:        #E8E8E8;
+      --max:           720px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Pretendard', -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.8; -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ── PROGRESS RAIL (left) ── */
+    #rail {
+      position: fixed; left: 0; top: 0;
+      width: 3px; height: 0%;
+      background: var(--primary);
+      z-index: 400;
+      transition: height 0.08s linear;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 300;
+      background: rgba(10,10,10,0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .header-in {
+      max-width: 1080px; margin: 0 auto;
+      padding: 0 28px; height: 58px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 9px;
+      text-decoration: none; font-weight: 800;
+      font-size: 16px; color: #fff; letter-spacing: -0.4px;
+    }
+    .logo-mark {
+      width: 28px; height: 28px;
+      background: var(--primary); border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-mark svg { width: 16px; height: 16px; fill: #fff; }
+    nav { display: flex; gap: 26px; }
+    nav a {
+      font-size: 13.5px; font-weight: 500;
+      color: rgba(255,255,255,0.5); text-decoration: none;
+      transition: color 0.18s;
+    }
+    nav a:hover { color: rgba(255,255,255,0.9); }
+    nav a.on { color: var(--primary); font-weight: 700; }
+
+    /* ── HERO ── */
+    .hero {
+      background: var(--dark);
+      padding: 140px 28px 80px;
+      position: relative; overflow: hidden;
+      min-height: 440px;
+      display: flex; align-items: flex-end;
+    }
+    /* watermark */
+    .hero::before {
+      content: '?';
+      position: absolute; right: -20px; top: 50%;
+      transform: translateY(-50%);
+      font-size: clamp(300px, 38vw, 520px);
+      font-weight: 900; line-height: 1;
+      color: var(--primary);
+      opacity: 0.07;
+      font-family: 'Pretendard', sans-serif;
+      pointer-events: none; user-select: none;
+    }
+    .hero-in {
+      max-width: var(--max); width: 100%;
+      margin: 0 auto; position: relative; z-index: 1;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center;
+      padding: 5px 13px 5px 10px;
+      background: var(--primary-dim);
+      border-left: 3px solid var(--primary);
+      border-radius: 0 6px 6px 0;
+      font-size: 12px; font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 22px;
+      opacity: 0; animation: fadeUp 0.55s 0.1s ease forwards;
+    }
+    .hero h1 {
+      font-size: clamp(28px, 4.8vw, 42px);
+      font-weight: 900; line-height: 1.24;
+      letter-spacing: -1.2px;
+      color: #fff;
+      margin-bottom: 30px;
+      opacity: 0; animation: fadeUp 0.55s 0.2s ease forwards;
+    }
+    .hero h1 em {
+      font-style: normal;
+      color: var(--primary);
+    }
+    .hero-meta {
+      display: flex; align-items: center; gap: 14px;
+      font-size: 12.5px; color: rgba(255,255,255,0.4);
+      opacity: 0; animation: fadeUp 0.55s 0.3s ease forwards;
+    }
+    .hero-dot { width: 3px; height: 3px; border-radius: 50%; background: rgba(255,255,255,0.25); }
+
+    /* HERO → BODY transition */
+    .hero-foot {
+      background: linear-gradient(to bottom, transparent, var(--bg));
+      height: 60px; margin-top: -1px;
+    }
+
+    /* ── BODY ── */
+    .body-wrap {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 20px 24px 96px;
+    }
+
+    /* ── SUMMARY ── */
+    .summary {
+      background: var(--card);
+      border-top: 3px solid var(--primary);
+      border-radius: 0 0 10px 10px;
+      padding: 22px 26px;
+      font-size: 15.5px; line-height: 1.82;
+      margin-bottom: 52px;
+    }
+
+    /* ── SECTION ── */
+    .sec { margin-bottom: 52px; }
+    .sec-label {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 10.5px; font-weight: 800;
+      letter-spacing: 1.8px; text-transform: uppercase;
+      color: var(--primary); margin-bottom: 18px;
+    }
+    .sec-label::after {
+      content: ''; flex: 1; height: 1px;
+      background: var(--primary-dim);
+    }
+    .sec p {
+      font-size: 15.5px; line-height: 1.85;
+      color: var(--text); margin-bottom: 14px;
+    }
+    .sec p:last-child { margin-bottom: 0; }
+    .sec ul { list-style: none; padding: 0; margin-top: 8px; }
+    .sec ul li {
+      font-size: 15px; line-height: 1.7;
+      padding: 5px 0 5px 20px; position: relative;
+    }
+    .sec ul li::before {
+      content: ''; position: absolute;
+      left: 0; top: 50%; transform: translateY(-50%);
+      width: 6px; height: 6px;
+      border-radius: 50%; background: var(--primary);
+    }
+
+    /* inline code */
+    code:not(pre code) {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      background: var(--primary-dim);
+      color: #b84800;
+      padding: 2px 6px; border-radius: 4px;
+    }
+
+    /* ── CODE COMPARISON TABS ── */
+    .code-tabs { margin: 22px 0; }
+    .tab-btns {
+      display: flex; gap: 0;
+      border-radius: 8px 8px 0 0;
+      overflow: hidden;
+    }
+    .tab-btn {
+      flex: 1; padding: 10px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase;
+      cursor: pointer; border: none;
+      transition: all 0.18s;
+    }
+    .tab-btn.bad-btn  { background: #2a1515; color: #e05252; }
+    .tab-btn.good-btn { background: #1a2a1a; color: #4a4a4a; }
+    .tab-btn.bad-btn.active  { background: #3a1a1a; color: #e05252; border-bottom: 2px solid #e05252; }
+    .tab-btn.good-btn.active { background: #1a3020; color: #4caf7d; border-bottom: 2px solid #4caf7d; }
+
+    .tab-panel { display: none; border-radius: 0 0 10px 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
+    .tab-panel.active { display: block; }
+
+    pre {
+      background: #181818; padding: 22px 24px;
+      overflow-x: auto; margin: 0;
+    }
+    pre.bad  { background: #1c0d0d; }
+    pre.good { background: #0c1a11; }
+
+    pre code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; line-height: 1.75;
+      color: #d4d4d4; background: none; padding: 0;
+    }
+    .kw  { color: #c792ea; }
+    .fn  { color: #82aaff; }
+    .str { color: #c3e88d; }
+    .cm  { color: #4a5568; font-style: italic; }
+    .op  { color: #89ddff; }
+    .tag { color: #f07178; }
+    .att { color: #ffcb6b; }
+    .pun { color: #89ddff; }
+    .num { color: #f78c6c; }
+
+    .cexplain {
+      border-left: 3px solid var(--border);
+      background: var(--card);
+      padding: 13px 16px;
+      font-size: 13.5px; color: var(--text-sub); line-height: 1.72;
+    }
+    .cexplain.bad  { border-color: #e05252; }
+    .cexplain.good { border-color: #4caf7d; }
+
+    /* single code block */
+    .codeblock { margin: 20px 0; border-radius: 10px; overflow: hidden; box-shadow: 0 3px 18px rgba(0,0,0,0.09); }
+    .cblock-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px;
+    }
+    .cblock-head.note { background: #1c1c1c; border-bottom: 1px solid #2a2a2a; }
+    .clabel { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+    .clabel.note { color: #555; }
+    .clang { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #444; }
+
+    /* ── CONCLUSION ── */
+    .conclusion {
+      background: var(--dark);
+      border-radius: 12px;
+      padding: 34px 38px;
+      margin: 52px 0;
+      position: relative; overflow: hidden;
+    }
+    .conclusion::before {
+      content: '';
+      position: absolute; left: 0; top: 0; bottom: 0;
+      width: 4px; background: var(--primary);
+      border-radius: 4px 0 0 4px;
+    }
+    .conclusion .sec-label { color: var(--primary); }
+    .conclusion .sec-label::after { background: rgba(254,110,0,0.2); }
+    .conclusion p {
+      color: rgba(255,255,255,0.82);
+      font-size: 15.5px; line-height: 1.85;
+      margin-bottom: 14px;
+    }
+    .conclusion p:last-child { margin-bottom: 0; }
+    .hl { color: var(--primary); font-weight: 800; }
+
+    /* ── RULE CARD ── */
+    .rule-card {
+      border: 1.5px solid var(--primary);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin: 20px 0;
+      background: var(--primary-dim);
+    }
+    .rule-card p {
+      font-size: 15px; line-height: 1.75;
+      color: var(--text); margin: 0;
+      font-weight: 600;
+    }
+    .rule-card p strong { color: var(--primary); }
+
+    /* ── RESOURCES ── */
+    .resources { margin-bottom: 52px; }
+    .res-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+    .res-list li a {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 18px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      text-decoration: none; color: var(--text);
+      font-size: 14px; font-weight: 500;
+      transition: all 0.18s;
+    }
+    .res-list li a:hover {
+      border-color: var(--primary); color: var(--primary);
+      transform: translateX(5px);
+    }
+    .res-list li a::before {
+      content: ''; width: 6px; height: 6px;
+      border-radius: 50%; background: var(--primary); flex-shrink: 0;
+    }
+    .res-arrow { margin-left: auto; color: var(--text-sub); transition: transform 0.18s; }
+    .res-list li a:hover .res-arrow { transform: translateX(3px); color: var(--primary); }
+
+    /* ── ACTIONS ── */
+    .actions {
+      display: flex; align-items: center; gap: 12px;
+      padding: 28px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 22px; border-radius: 20px;
+      font-family: 'Pretendard', sans-serif;
+      font-size: 13.5px; font-weight: 700;
+      cursor: pointer; border: none;
+      transition: all 0.18s; text-decoration: none;
+    }
+    .btn svg { width: 15px; height: 15px; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 5px 14px rgba(254,110,0,0.28); }
+    .btn-ghost { background: var(--card); color: var(--text); border: 1.5px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--text); transform: translateY(-1px); }
+
+    /* ── FOOTER ── */
+    footer { background: #111; color: rgba(255,255,255,0.6); padding: 52px 28px 32px; margin-top: 80px; }
+    .footer-in { max-width: 1080px; margin: 0 auto; }
+    .footer-top {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding-bottom: 36px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 24px;
+    }
+    .f-logo { display: flex; align-items: center; gap: 8px; color: #fff; font-weight: 800; font-size: 16px; }
+    .f-logo-mark { width: 24px; height: 24px; background: var(--primary); border-radius: 5px; }
+    .footer-cols { display: flex; gap: 56px; }
+    .footer-col h4 { font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #fff; margin-bottom: 14px; }
+    .footer-col ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+    .footer-col ul li a { font-size: 13px; color: rgba(255,255,255,0.45); text-decoration: none; transition: color 0.18s; }
+    .footer-col ul li a:hover { color: var(--primary); }
+    .footer-btm { font-size: 12px; color: rgba(255,255,255,0.25); }
+
+    /* ── ANIMATION ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.5s ease, transform 0.5s ease; }
+    .reveal.show { opacity: 1; transform: translateY(0); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      .hero { padding: 120px 20px 60px; min-height: 360px; }
+      .body-wrap { padding: 16px 18px 72px; }
+      .footer-top { flex-direction: column; gap: 28px; }
+      .footer-cols { gap: 24px; }
+      nav { gap: 16px; }
+      .conclusion { padding: 24px 22px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="rail"></div>
+
+<!-- HEADER -->
+<header>
+  <div class="header-in">
+    <a href="#" class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+      </div>
+      매일매일
+    </a>
+    <nav>
+      <a href="#">홈</a>
+      <a href="#" class="on">아티클</a>
+      <a href="#">블로그</a>
+    </nav>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-in">
+    <div class="hero-badge">프론트엔드에 관련한 질문이에요.</div>
+    <h1>왜 <em>useState</em>를<br>조건문 안에서<br>사용하면 안 되나요?</h1>
+    <div class="hero-meta">
+      <span>2026년 4월 14일</span>
+      <span class="hero-dot"></span>
+      <span>4분 읽기</span>
+      <span class="hero-dot"></span>
+      <span>React, useState, Hook</span>
+    </div>
+  </div>
+</section>
+<div class="hero-foot"></div>
+
+<!-- BODY -->
+<main class="body-wrap">
+
+  <!-- SUMMARY -->
+  <div class="summary reveal">
+    <code>useState()</code>를 조건문 안에서 사용하면 안 되는 이유는 React가 <code>state</code>를 관리하는 방식이
+    <code>useState</code>를 호출하는 순서와 연관되어 있기 때문입니다.
+    렌더링마다 호출 순서가 달라지면 React 내부 상태가 뒤섞여 심각한 버그가 발생합니다.
+  </div>
+
+  <!-- WHY -->
+  <div class="sec reveal">
+    <div class="sec-label">왜 이런 문제가 발생하나요?</div>
+    <p>
+      리액트는 컴포넌트 내부에서 <code>useState()</code>가 호출된 순서를 기준으로
+      <code>state</code>를 저장하고 업데이트합니다.
+    </p>
+    <p>
+      그런데 <code>useState()</code>를 조건문 안에서 호출하면 특정 렌더링 시에는 호출되고,
+      다른 렌더링에서는 호출되지 않을 가능성이 생깁니다.
+    </p>
+    <p>
+      이렇게 되면 React가 각 <code>useState()</code> 호출을 순서 기반으로 매핑하기 때문에,
+      이후 렌더링에서 이전에 있던 <code>useState()</code> 호출들의 대응 값이 어긋나
+      상태들이 사라지거나 잘못된 값으로 채워집니다.
+    </p>
+  </div>
+
+  <!-- RULE CARD -->
+  <div class="rule-card reveal">
+    <p>
+      React Hook은 <strong>컴포넌트의 최상위 레벨에서만</strong> 호출해야 합니다.
+      조건문, 반복문, 중첩 함수 안에서 호출하지 마세요.
+    </p>
+  </div>
+
+  <!-- CODE COMPARISON -->
+  <div class="sec reveal">
+    <div class="sec-label">코드 비교</div>
+
+    <div class="code-tabs">
+      <div class="tab-btns">
+        <button class="tab-btn bad-btn active" onclick="switchTab('bad')">Bad — 잘못된 사용</button>
+        <button class="tab-btn good-btn" onclick="switchTab('good')">Good — 올바른 사용</button>
+      </div>
+
+      <div class="tab-panel bad active" id="tab-bad">
+        <pre class="bad"><code><span class="kw">function</span> <span class="fn">Example</span>(<span class="pun">{</span> shouldUseState <span class="pun">})</span> <span class="pun">{</span>
+  <span class="kw">if</span> <span class="pun">(</span>shouldUseState<span class="pun">)</span> <span class="pun">{</span>
+    <span class="cm">// 조건문 안에서 useState 호출 — Hook 규칙 위반</span>
+    <span class="kw">const</span> <span class="pun">[</span>count<span class="pun">,</span> setCount<span class="pun">]</span> <span class="op">=</span> <span class="fn">useState</span>(<span class="num">0</span>)<span class="pun">;</span>
+  <span class="pun">}</span>
+
+  <span class="kw">return</span> <span class="tag">&lt;div&gt;</span>Example Component<span class="tag">&lt;/div&gt;</span><span class="pun">;</span>
+<span class="pun">}</span></code></pre>
+        <div class="cexplain bad">
+          <code>shouldUseState</code>가 <code>true</code>일 때만 <code>useState</code>가 호출됩니다.
+          <code>false</code>로 바뀌는 순간 React 내부의 Hook 순서가 어긋나 예측 불가한 버그가 발생합니다.
+        </div>
+      </div>
+
+      <div class="tab-panel good" id="tab-good">
+        <pre class="good"><code><span class="kw">function</span> <span class="fn">Example</span>(<span class="pun">{</span> shouldUseState <span class="pun">})</span> <span class="pun">{</span>
+  <span class="cm">// 항상 최상위에서 호출</span>
+  <span class="kw">const</span> <span class="pun">[</span>count<span class="pun">,</span> setCount<span class="pun">]</span> <span class="op">=</span> <span class="fn">useState</span>(<span class="num">0</span>)<span class="pun">;</span>
+
+  <span class="kw">if</span> <span class="pun">(!</span>shouldUseState<span class="pun">)</span> <span class="pun">{</span>
+    <span class="kw">return</span> <span class="kw">null</span><span class="pun">;</span>  <span class="cm">// 조건은 반환에서 처리</span>
+  <span class="pun">}</span>
+
+  <span class="kw">return</span> <span class="tag">&lt;div&gt;</span><span class="pun">{</span>count<span class="pun">}</span><span class="tag">&lt;/div&gt;</span><span class="pun">;</span>
+<span class="pun">}</span></code></pre>
+        <div class="cexplain good">
+          <code>useState</code>는 항상 컴포넌트 최상위에서 호출합니다.
+          조건 처리는 Hook 호출 이후에 <code>return</code>으로 분기합니다.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADDITIONAL CODE: useEffect 예시도 동일 -->
+  <div class="sec reveal">
+    <div class="sec-label">같은 규칙이 적용되는 경우</div>
+    <p>
+      이 규칙은 <code>useState</code>뿐 아니라 모든 React Hook에 동일하게 적용됩니다.
+      <code>useEffect</code>, <code>useRef</code>, <code>useMemo</code> 모두 마찬가지입니다.
+    </p>
+    <div class="codeblock">
+      <div class="cblock-head note">
+        <span class="clabel note">모든 Hook에 동일 적용</span>
+        <span class="clang">tsx</span>
+      </div>
+      <pre><code><span class="cm">// 잘못된 예 — useEffect도 조건문 금지</span>
+<span class="kw">if</span> <span class="pun">(</span>condition<span class="pun">)</span> <span class="pun">{</span>
+  <span class="fn">useEffect</span>(() <span class="op">=&gt;</span> <span class="pun">{</span> <span class="cm">/* ... */</span> <span class="pun">},</span> <span class="pun">[]);</span>  <span class="cm">// Hook 규칙 위반</span>
+<span class="pun">}</span>
+
+<span class="cm">// 올바른 예 — 조건은 Hook 내부에서</span>
+<span class="fn">useEffect</span>(() <span class="op">=&gt;</span> <span class="pun">{</span>
+  <span class="kw">if</span> <span class="pun">(</span>condition<span class="pun">)</span> <span class="pun">{</span>
+    <span class="cm">/* 조건에 따른 로직 */</span>
+  <span class="pun">}</span>
+<span class="pun">},</span> <span class="pun">[</span>condition<span class="pun">]);</span></code></pre>
+    </div>
+  </div>
+
+  <!-- CONCLUSION -->
+  <div class="conclusion reveal">
+    <div class="sec-label">정리</div>
+    <p>
+      <span class="hl">useState</span>는 항상 컴포넌트의 최상위에서 호출해야 합니다.
+      조건문이나 반복문 내부에서 호출하지 않는다.
+    </p>
+    <p>
+      조건에 따라 상태를 다르게 처리하고 싶다면, Hook 호출 이후에 <span class="hl">return</span>으로 분기하거나
+      Hook 내부에서 조건 로직을 처리하세요.
+    </p>
+  </div>
+
+  <!-- RESOURCES -->
+  <div class="resources reveal">
+    <div class="sec-label">추가 학습 자료 공유합니다.</div>
+    <ul class="res-list">
+      <li>
+        <a href="https://react.dev/reference/rules/rules-of-hooks" target="_blank">
+          [React 공식 문서] Hook의 규칙
+          <span class="res-arrow">→</span>
+        </a>
+      </li>
+      <li>
+        <a href="https://d5br5.dev/blog/react/hooks_introduction" target="_blank">
+          [d5br5.dev] React useState 동작 원리 이해하기
+          <span class="res-arrow">→</span>
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="actions reveal">
+    <button class="btn btn-ghost">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
+        <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+      </svg>
+      콘텐츠 피드백
+    </button>
+    <button class="btn btn-primary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      </svg>
+      공유하기
+    </button>
+  </div>
+
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-in">
+    <div class="footer-top">
+      <div class="f-logo">
+        <div class="f-logo-mark"></div>
+        매일매일
+      </div>
+      <div class="footer-cols">
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <ul><li><a href="mailto:team.maeilmail@gmail.com">team.maeilmail@gmail.com</a></li></ul>
+        </div>
+        <div class="footer-col">
+          <h4>Socials</h4>
+          <ul>
+            <li><a href="#">Velog</a></li>
+            <li><a href="#">Github</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Etc</h4>
+          <ul>
+            <li><a href="#">팀 소개</a></li>
+            <li><a href="#">서비스 피드백</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer-btm">Copyright &copy; 2026 매일매일. All rights reserved.</div>
+  </div>
+</footer>
+
+<script>
+  // Left rail progress
+  const rail = document.getElementById('rail');
+  window.addEventListener('scroll', () => {
+    const pct = window.scrollY / (document.documentElement.scrollHeight - window.innerHeight) * 100;
+    rail.style.height = Math.min(pct, 100) + '%';
+  });
+
+  // Scroll reveal
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('show'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  // Code tab switch
+  function switchTab(type) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + type).classList.add('active');
+    document.querySelector('.' + type + '-btn').classList.add('active');
+  }
+</script>
+</body>
+</html>

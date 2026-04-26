@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>왜 useEffect에서 async 함수를 직접 사용하면 안 되나요? | 매일매일</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+
+  <style>
+    :root {
+      --primary:      #fe6e00;
+      --primary-dim:  rgba(254,110,0,0.09);
+      --primary-mid:  rgba(254,110,0,0.18);
+      --primary-hov:  #e56200;
+      --bg:           #FAFAF9;
+      --surface:      #ffffff;
+      --dark:         #111111;
+      --text:         #212121;
+      --text-sub:     #757575;
+      --border:       #E4E4E0;
+      --max:          720px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Pretendard', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.8;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── TOP PROGRESS BAR ── */
+    #topbar {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: 3px; z-index: 500;
+      background: var(--border);
+    }
+    #topbar-fill {
+      height: 100%; width: 0%;
+      background: var(--primary);
+      transition: width 0.08s linear;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: fixed; top: 3px; left: 0; right: 0; z-index: 400;
+      background: rgba(250,250,249,0.95);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .hdr-in {
+      max-width: 1080px; margin: 0 auto;
+      padding: 0 28px; height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 9px;
+      text-decoration: none; font-weight: 800;
+      font-size: 16px; color: var(--text); letter-spacing: -0.4px;
+    }
+    .logo-mark {
+      width: 28px; height: 28px;
+      background: var(--primary); border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-mark svg { width: 16px; height: 16px; fill: #fff; }
+    nav { display: flex; gap: 26px; }
+    nav a {
+      font-size: 13.5px; font-weight: 500;
+      color: var(--text-sub); text-decoration: none;
+      transition: color 0.18s;
+    }
+    nav a:hover { color: var(--text); }
+    nav a.on { color: var(--primary); font-weight: 700; }
+
+    /* ── PAGE WRAPPER ── */
+    .page {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 108px 24px 100px;
+    }
+
+    /* ── CATEGORY BADGE ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 5px 13px 5px 10px;
+      background: var(--primary-dim);
+      border-left: 3px solid var(--primary);
+      border-radius: 0 6px 6px 0;
+      font-size: 12px; font-weight: 700; color: var(--primary);
+      margin-bottom: 20px;
+      opacity: 0; animation: slideIn 0.5s 0.05s ease forwards;
+    }
+
+    /* ── TITLE ── */
+    h1 {
+      font-size: clamp(26px, 4.2vw, 38px);
+      font-weight: 900; line-height: 1.26;
+      letter-spacing: -1px; color: var(--text);
+      margin-bottom: 10px;
+      opacity: 0; animation: slideIn 0.5s 0.12s ease forwards;
+    }
+    h1 em { font-style: normal; color: var(--primary); }
+
+    /* ── META ── */
+    .meta {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 12.5px; color: var(--text-sub);
+      margin-bottom: 36px;
+      padding-bottom: 28px;
+      border-bottom: 1.5px dashed var(--border);
+      opacity: 0; animation: slideIn 0.5s 0.18s ease forwards;
+    }
+    .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--border); }
+
+    /* ── WARNING CALLOUT ── */
+    .callout {
+      display: flex; gap: 14px; align-items: flex-start;
+      background: var(--surface);
+      border: 1.5px solid var(--primary);
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-bottom: 48px;
+    }
+    .callout-icon {
+      flex-shrink: 0;
+      width: 22px; height: 22px;
+      background: var(--primary);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 900; color: #fff;
+      margin-top: 1px;
+    }
+    .callout p {
+      font-size: 14.5px; line-height: 1.75;
+      color: var(--text);
+    }
+    .callout p code { color: #b84800; }
+
+    /* ── NUMBERED SECTION ── */
+    .nsec {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      gap: 0 20px;
+      margin-bottom: 52px;
+      align-items: start;
+    }
+    .nsec-num {
+      font-size: 42px; font-weight: 900;
+      color: var(--primary-mid);
+      line-height: 1;
+      padding-top: 2px;
+      letter-spacing: -2px;
+      font-variant-numeric: tabular-nums;
+    }
+    .nsec-body {}
+    .nsec-title {
+      font-size: 17px; font-weight: 800;
+      color: var(--text); margin-bottom: 14px;
+      letter-spacing: -0.4px;
+    }
+    .nsec-body p {
+      font-size: 15px; line-height: 1.85;
+      color: var(--text); margin-bottom: 12px;
+    }
+    .nsec-body p:last-child { margin-bottom: 0; }
+    .nsec-body ul { list-style: none; padding: 0; margin-top: 6px; }
+    .nsec-body ul li {
+      font-size: 15px; line-height: 1.72;
+      padding: 5px 0 5px 20px; position: relative;
+    }
+    .nsec-body ul li::before {
+      content: ''; position: absolute;
+      left: 0; top: 50%; transform: translateY(-50%);
+      width: 6px; height: 6px;
+      border-radius: 50%; background: var(--primary);
+    }
+
+    /* inline code */
+    code:not(pre code) {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      background: var(--primary-dim);
+      color: #b84800;
+      padding: 2px 6px; border-radius: 4px;
+    }
+
+    /* ── CODE BLOCK with LINE NUMBERS ── */
+    .codeblock {
+      margin: 18px 0;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 22px rgba(0,0,0,0.1);
+    }
+    .cb-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px;
+    }
+    .cb-head.bad  { background: #271313; border-bottom: 2px solid #e05252; }
+    .cb-head.good { background: #112218; border-bottom: 2px solid #4caf7d; }
+    .cb-head.note { background: #1c1c1c; border-bottom: 1px solid #2a2a2a; }
+    .cb-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase;
+    }
+    .cb-label.bad  { color: #e05252; }
+    .cb-label.good { color: #4caf7d; }
+    .cb-label.note { color: #555; }
+    .cb-lang { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #444; }
+
+    .code-wrap {
+      display: flex;
+      background: #181818;
+    }
+    .code-wrap.bad  { background: #1c0d0d; }
+    .code-wrap.good { background: #0c1a11; }
+
+    .line-nums {
+      display: flex; flex-direction: column;
+      padding: 22px 0 22px 14px;
+      background: rgba(255,255,255,0.03);
+      border-right: 1px solid rgba(255,255,255,0.05);
+      min-width: 38px; text-align: right;
+      gap: 0;
+    }
+    .line-nums span {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px; color: #444;
+      line-height: 1.75;
+      padding-right: 10px;
+      display: block;
+    }
+
+    pre {
+      padding: 22px 22px 22px 16px;
+      overflow-x: auto; margin: 0;
+      flex: 1; background: transparent;
+    }
+    pre code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; line-height: 1.75;
+      color: #d4d4d4; background: none; padding: 0;
+      white-space: pre;
+    }
+
+    /* syntax */
+    .kw  { color: #c792ea; }
+    .fn  { color: #82aaff; }
+    .str { color: #c3e88d; }
+    .cm  { color: #4a5568; font-style: italic; }
+    .op  { color: #89ddff; }
+    .tag { color: #f07178; }
+    .att { color: #ffcb6b; }
+    .pun { color: #89ddff; }
+    .num { color: #f78c6c; }
+    .err { color: #e05252; text-decoration: underline wavy #e05252; }
+
+    .cexplain {
+      padding: 12px 16px;
+      font-size: 13.5px; color: var(--text-sub);
+      line-height: 1.72; border-left: 3px solid;
+      background: var(--surface);
+    }
+    .cexplain.bad  { border-color: #e05252; }
+    .cexplain.good { border-color: #4caf7d; }
+
+    /* ── DIVIDER ── */
+    .divider {
+      display: flex; align-items: center; gap: 16px;
+      margin: 8px 0 52px;
+      color: var(--text-sub); font-size: 11px;
+      font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* ── CONCLUSION ── */
+    .conclusion {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-top: 4px solid var(--primary);
+      border-radius: 0 0 12px 12px;
+      padding: 30px 32px;
+      margin-bottom: 52px;
+    }
+    .conclusion-title {
+      font-size: 13px; font-weight: 800;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--primary); margin-bottom: 16px;
+    }
+    .conclusion p {
+      font-size: 15.5px; line-height: 1.85;
+      color: var(--text); margin-bottom: 12px;
+    }
+    .conclusion p:last-child { margin-bottom: 0; }
+    .hl { color: var(--primary); font-weight: 800; }
+
+    /* ── RESOURCES ── */
+    .resources { margin-bottom: 52px; }
+    .res-title {
+      font-size: 13px; font-weight: 800;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--text-sub); margin-bottom: 14px;
+    }
+    .res-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+    .res-list li a {
+      display: flex; align-items: center; gap: 10px;
+      padding: 13px 18px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      text-decoration: none; color: var(--text);
+      font-size: 14px; font-weight: 500;
+      transition: all 0.18s;
+    }
+    .res-list li a:hover {
+      border-color: var(--primary); color: var(--primary);
+      transform: translateX(5px);
+    }
+    .res-list li a::before {
+      content: ''; width: 6px; height: 6px;
+      border-radius: 50%; background: var(--primary); flex-shrink: 0;
+    }
+    .res-arrow { margin-left: auto; color: var(--border); transition: all 0.18s; }
+    .res-list li a:hover .res-arrow { color: var(--primary); transform: translateX(3px); }
+
+    /* ── ACTIONS ── */
+    .actions {
+      display: flex; align-items: center; gap: 12px;
+      padding: 28px 0;
+      border-top: 1.5px dashed var(--border);
+      border-bottom: 1.5px dashed var(--border);
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 22px; border-radius: 20px;
+      font-family: 'Pretendard', sans-serif;
+      font-size: 13.5px; font-weight: 700;
+      cursor: pointer; border: none; transition: all 0.18s;
+    }
+    .btn svg { width: 15px; height: 15px; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hov); transform: translateY(-1px); box-shadow: 0 5px 14px rgba(254,110,0,0.28); }
+    .btn-ghost { background: var(--surface); color: var(--text); border: 1.5px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--text); transform: translateY(-1px); }
+
+    /* ── FOOTER ── */
+    footer { background: var(--dark); color: rgba(255,255,255,0.6); padding: 52px 28px 32px; margin-top: 80px; }
+    .footer-in { max-width: 1080px; margin: 0 auto; }
+    .footer-top {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding-bottom: 36px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 24px;
+    }
+    .f-logo { display: flex; align-items: center; gap: 8px; color: #fff; font-weight: 800; font-size: 16px; }
+    .f-logo-mark { width: 24px; height: 24px; background: var(--primary); border-radius: 5px; }
+    .footer-cols { display: flex; gap: 56px; }
+    .footer-col h4 { font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #fff; margin-bottom: 14px; }
+    .footer-col ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+    .footer-col ul li a { font-size: 13px; color: rgba(255,255,255,0.45); text-decoration: none; transition: color 0.18s; }
+    .footer-col ul li a:hover { color: var(--primary); }
+    .footer-btm { font-size: 12px; color: rgba(255,255,255,0.25); }
+
+    /* ── ANIMATIONS ── */
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-16px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    .reveal {
+      opacity: 0; transform: translateX(-14px);
+      transition: opacity 0.45s ease, transform 0.45s ease;
+    }
+    .reveal.show { opacity: 1; transform: translateX(0); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      .page { padding: 96px 18px 80px; }
+      .nsec { grid-template-columns: 38px 1fr; gap: 0 14px; }
+      .nsec-num { font-size: 32px; }
+      .footer-top { flex-direction: column; gap: 28px; }
+      .footer-cols { gap: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- PROGRESS -->
+<div id="topbar"><div id="topbar-fill"></div></div>
+
+<!-- HEADER -->
+<header>
+  <div class="hdr-in">
+    <a href="#" class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+      </div>
+      매일매일
+    </a>
+    <nav>
+      <a href="#">홈</a>
+      <a href="#" class="on">아티클</a>
+      <a href="#">블로그</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ARTICLE -->
+<main class="page">
+
+  <div class="badge">프론트엔드에 관련한 질문이에요.</div>
+
+  <h1>왜 <em>useEffect</em>에서<br>async 함수를 직접<br>사용하면 안 되나요?</h1>
+
+  <div class="meta">
+    <span>2026년 4월 14일</span>
+    <span class="dot"></span>
+    <span>4분 읽기</span>
+    <span class="dot"></span>
+    <span>React, useEffect, async/await</span>
+  </div>
+
+  <!-- CALLOUT -->
+  <div class="callout reveal">
+    <div class="callout-icon">!</div>
+    <p>
+      <code>useEffect</code>의 콜백은 <strong>동기 함수</strong>이거나, cleanup 함수를 반환해야 합니다.
+      <code>async</code> 함수는 항상 <code>Promise</code>를 반환하므로 useEffect와 직접 함께 사용하면
+      예상치 못한 메모리 누수와 버그가 발생합니다.
+    </p>
+  </div>
+
+  <!-- SECTION 01 -->
+  <div class="nsec reveal">
+    <div class="nsec-num">01</div>
+    <div class="nsec-body">
+      <div class="nsec-title">어떤 문제가 발생하나요?</div>
+      <p>
+        <code>useEffect</code>는 콜백 함수가 반환하는 값을 cleanup 함수로 인식합니다.
+        정상적인 경우 <code>return () => {}</code> 형태의 함수 또는 아무것도 반환하지 않아야 합니다.
+      </p>
+      <p>
+        <code>async</code> 함수를 직접 전달하면 React는 <code>Promise</code> 객체를 받게 됩니다.
+        React는 이것을 처리하지 못하고, 비동기 작업이 컴포넌트 언마운트 이후에도
+        상태를 업데이트하려 해 메모리 누수가 발생합니다.
+      </p>
+      <ul>
+        <li>언마운트 후 상태 업데이트 시도로 인한 메모리 누수</li>
+        <li>cleanup 함수가 실행되지 않아 구독 해제, 타이머 해제 불가</li>
+        <li>race condition 발생 가능</li>
+        <li>React 18 StrictMode에서 이중 실행으로 인한 버그 증폭</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- SECTION 02 — BAD -->
+  <div class="nsec reveal">
+    <div class="nsec-num">02</div>
+    <div class="nsec-body">
+      <div class="nsec-title">잘못된 사용 (Bad Example)</div>
+      <div class="codeblock">
+        <div class="cb-head bad">
+          <span class="cb-label bad">Bad</span>
+          <span class="cb-lang">tsx</span>
+        </div>
+        <div class="code-wrap bad">
+          <div class="line-nums">
+            <span>1</span><span>2</span><span>3</span>
+            <span>4</span><span>5</span><span>6</span>
+            <span>7</span>
+          </div>
+          <pre><code><span class="cm">// async 함수를 useEffect에 직접 전달 — 금지</span>
+<span class="fn">useEffect</span>(<span class="kw">async</span> () <span class="op">=&gt;</span> <span class="pun">{</span>
+  <span class="kw">const</span> data <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetchData</span>()<span class="pun">;</span>
+  <span class="fn">setData</span>(data)<span class="pun">;</span>
+<span class="pun">},</span> [])<span class="pun">;</span>
+<span class="cm">// async 함수는 Promise를 반환</span>
+<span class="cm">// React가 cleanup 대신 Promise를 받게 됨</span></code></pre>
+        </div>
+        <div class="cexplain bad">
+          <code>async () =&gt; {}</code>는 항상 <code>Promise</code>를 반환합니다.
+          React는 cleanup 함수 자리에 Promise를 받아 무시하고, 비동기 작업이 완료된 후
+          컴포넌트가 이미 언마운트되었어도 <code>setData</code>를 호출해 오류를 일으킵니다.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider">올바른 방법</div>
+
+  <!-- SECTION 03 — GOOD -->
+  <div class="nsec reveal">
+    <div class="nsec-num">03</div>
+    <div class="nsec-body">
+      <div class="nsec-title">올바른 사용법 — 내부 함수 선언</div>
+      <div class="codeblock">
+        <div class="cb-head good">
+          <span class="cb-label good">Good</span>
+          <span class="cb-lang">tsx</span>
+        </div>
+        <div class="code-wrap good">
+          <div class="line-nums">
+            <span>1</span><span>2</span><span>3</span>
+            <span>4</span><span>5</span><span>6</span>
+            <span>7</span><span>8</span>
+          </div>
+          <pre><code><span class="fn">useEffect</span>(() <span class="op">=&gt;</span> <span class="pun">{</span>
+  <span class="cm">// 내부에 async 함수를 선언하고 바로 호출</span>
+  <span class="kw">const</span> <span class="fn">load</span> <span class="op">=</span> <span class="kw">async</span> () <span class="op">=&gt;</span> <span class="pun">{</span>
+    <span class="kw">const</span> data <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetchData</span>()<span class="pun">;</span>
+    <span class="fn">setData</span>(data)<span class="pun">;</span>
+  <span class="pun">};</span>
+  <span class="fn">load</span>()<span class="pun">;</span>
+<span class="pun">},</span> [])<span class="pun">;</span></code></pre>
+        </div>
+        <div class="cexplain good">
+          <code>useEffect</code> 콜백 자체는 동기 함수로 유지하고,
+          내부에 <code>async</code> 함수를 선언해 즉시 호출합니다.
+          이렇게 하면 <code>useEffect</code>가 cleanup 함수를 올바르게 받을 수 있습니다.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 04 — CLEANUP -->
+  <div class="nsec reveal">
+    <div class="nsec-num">04</div>
+    <div class="nsec-body">
+      <div class="nsec-title">메모리 누수 방지 — cleanup 함께 사용</div>
+      <p>컴포넌트가 언마운트될 때 비동기 작업의 결과를 무시하려면 플래그를 활용하세요.</p>
+      <div class="codeblock">
+        <div class="cb-head good">
+          <span class="cb-label good">Best</span>
+          <span class="cb-lang">tsx</span>
+        </div>
+        <div class="code-wrap good">
+          <div class="line-nums">
+            <span>1</span><span>2</span><span>3</span>
+            <span>4</span><span>5</span><span>6</span>
+            <span>7</span><span>8</span><span>9</span>
+            <span>10</span><span>11</span><span>12</span>
+            <span>13</span><span>14</span>
+          </div>
+          <pre><code><span class="fn">useEffect</span>(() <span class="op">=&gt;</span> <span class="pun">{</span>
+  <span class="kw">let</span> isMounted <span class="op">=</span> <span class="kw">true</span><span class="pun">;</span>
+
+  <span class="kw">const</span> <span class="fn">load</span> <span class="op">=</span> <span class="kw">async</span> () <span class="op">=&gt;</span> <span class="pun">{</span>
+    <span class="kw">const</span> data <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetchData</span>()<span class="pun">;</span>
+    <span class="cm">// 언마운트 후에는 상태 업데이트 방지</span>
+    <span class="kw">if</span> <span class="pun">(</span>isMounted<span class="pun">)</span> <span class="fn">setData</span>(data)<span class="pun">;</span>
+  <span class="pun">};</span>
+
+  <span class="fn">load</span>()<span class="pun">;</span>
+
+  <span class="cm">// cleanup: 언마운트 시 플래그 해제</span>
+  <span class="kw">return</span> () <span class="op">=&gt;</span> <span class="pun">{</span> isMounted <span class="op">=</span> <span class="kw">false</span><span class="pun">; };</span>
+<span class="pun">},</span> [])<span class="pun">;</span></code></pre>
+        </div>
+        <div class="cexplain good">
+          <code>isMounted</code> 플래그로 언마운트 후 상태 업데이트를 차단하고,
+          cleanup 함수에서 플래그를 <code>false</code>로 설정해 메모리 누수를 방지합니다.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONCLUSION -->
+  <div class="conclusion reveal">
+    <div class="conclusion-title">정리</div>
+    <p>
+      <span class="hl">useEffect</span>에 <code>async</code> 함수를 직접 전달하면 안 됩니다.
+      콜백 내부에 <code>async</code> 함수를 선언하고 즉시 호출하는 방식을 사용하세요.
+    </p>
+    <p>
+      컴포넌트가 언마운트될 가능성이 있다면 <span class="hl">isMounted 플래그</span>와
+      cleanup 함수를 함께 사용해 메모리 누수를 반드시 방지하세요.
+    </p>
+  </div>
+
+  <!-- RESOURCES -->
+  <div class="resources reveal">
+    <div class="res-title">추가 학습 자료 공유합니다.</div>
+    <ul class="res-list">
+      <li>
+        <a href="https://react.dev/reference/react/useEffect" target="_blank">
+          [React 공식 문서] useEffect
+          <span class="res-arrow">→</span>
+        </a>
+      </li>
+      <li>
+        <a href="https://devtrium.com/posts/async-function-useeffect" target="_blank">
+          [devtrium] How to use async functions in useEffect
+          <span class="res-arrow">→</span>
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="actions reveal">
+    <button class="btn btn-ghost">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
+        <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+      </svg>
+      콘텐츠 피드백
+    </button>
+    <button class="btn btn-primary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      </svg>
+      공유하기
+    </button>
+  </div>
+
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-in">
+    <div class="footer-top">
+      <div class="f-logo">
+        <div class="f-logo-mark"></div>
+        매일매일
+      </div>
+      <div class="footer-cols">
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <ul><li><a href="mailto:team.maeilmail@gmail.com">team.maeilmail@gmail.com</a></li></ul>
+        </div>
+        <div class="footer-col">
+          <h4>Socials</h4>
+          <ul>
+            <li><a href="#">Velog</a></li>
+            <li><a href="#">Github</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Etc</h4>
+          <ul>
+            <li><a href="#">팀 소개</a></li>
+            <li><a href="#">서비스 피드백</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer-btm">Copyright &copy; 2026 매일매일. All rights reserved.</div>
+  </div>
+</footer>
+
+<script>
+  // Top progress bar
+  const fill = document.getElementById('topbar-fill');
+  window.addEventListener('scroll', () => {
+    const pct = window.scrollY / (document.documentElement.scrollHeight - window.innerHeight) * 100;
+    fill.style.width = Math.min(pct, 100) + '%';
+  });
+
+  // Scroll reveal (left slide-in)
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('show'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.07 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+</script>
+</body>
+</html>

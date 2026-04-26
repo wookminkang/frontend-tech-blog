@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>React에서 useCallback, useMemo, React.memo는 언제 써야 하나요? — 매일매일</title>
+  <meta name="description" content="세 가지 최적화 도구는 참조 동일성에 기반합니다. React.memo + useCallback을 세트로 사용하고, useMemo는 비용이 큰 연산에만 적용합니다." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #fe6e00;
+      --primary-light: #fff3e8;
+      --bg: #ffffff;
+      --surface: #F9F9F9;
+      --text: #212121;
+      --text-secondary: #757575;
+      --border: #E0E0E0;
+      --code-bg: #1e1e1e;
+      --code-bad: #e05252;
+      --code-good: #4caf7d;
+      --footer-bg: #1A1A2E;
+      --max-width: 720px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 16px; line-height: 1.8;
+      color: var(--text); background: var(--bg);
+    }
+
+    #progress-bar {
+      position: fixed; top: 0; left: 0;
+      height: 3px; width: 0%;
+      background: var(--primary); z-index: 1000;
+      transition: width 0.1s linear;
+    }
+
+    header {
+      position: sticky; top: 0;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .header-inner {
+      max-width: var(--max-width); margin: 0 auto;
+      padding: 0 24px; height: 56px;
+      display: flex; align-items: center;
+    }
+
+    .logo { font-size: 18px; font-weight: 700; color: var(--text); text-decoration: none; }
+    .logo span { color: var(--primary); }
+
+    main { max-width: var(--max-width); margin: 0 auto; padding: 56px 24px 80px; }
+
+    .category-badge {
+      display: inline-block;
+      padding: 6px 14px 6px 12px;
+      background: var(--primary-light);
+      border-left: 4px solid var(--primary);
+      color: var(--primary);
+      font-size: 13px; font-weight: 600;
+      border-radius: 0 4px 4px 0;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 28px; font-weight: 700;
+      line-height: 1.3; letter-spacing: -0.5px;
+      margin-bottom: 32px;
+    }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+    h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; line-height: 1.3; }
+
+    p { color: var(--text); margin-bottom: 16px; }
+    ul, ol { padding-left: 24px; margin-bottom: 16px; }
+    li { margin-bottom: 8px; line-height: 1.8; }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; color: var(--primary);
+      background: var(--primary-light);
+      padding: 2px 6px; border-radius: 4px;
+    }
+
+    /* 코드 블록 */
+    .code-block { margin: 20px 0; border-radius: 10px; overflow: hidden; }
+
+    .code-header {
+      padding: 10px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; font-weight: 500;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .code-header::before {
+      content: ''; display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%; flex-shrink: 0;
+    }
+
+    .code-block.bad .code-header {
+      background: #2a1a1a; color: var(--code-bad);
+      border-bottom: 2px solid var(--code-bad);
+    }
+    .code-block.bad .code-header::before { background: var(--code-bad); }
+
+    .code-block.good .code-header {
+      background: #1a2a1e; color: var(--code-good);
+      border-bottom: 2px solid var(--code-good);
+    }
+    .code-block.good .code-header::before { background: var(--code-good); }
+
+    pre { background: var(--code-bg); padding: 20px; overflow-x: auto; margin: 0; }
+
+    pre code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; line-height: 1.6;
+      color: #d4d4d4; background: none;
+      padding: 0; border-radius: 0;
+    }
+
+    .comment { color: #6a9955; }
+    .keyword { color: #569cd6; }
+    .string { color: #ce9178; }
+    .func { color: #dcdcaa; }
+    .type { color: #4ec9b0; }
+    .number { color: #b5cea8; }
+    .prop { color: #9cdcfe; }
+    .tag { color: #f28b54; }
+
+    /* 요약 박스 */
+    .summary-box {
+      background: var(--surface);
+      border-left: 4px solid var(--primary);
+      border-radius: 0 8px 8px 0;
+      padding: 20px 24px; margin-bottom: 16px;
+    }
+    .summary-box p { margin-bottom: 0; }
+
+    /* 3가지 도구 카드 */
+    .tool-grid { display: grid; gap: 14px; margin: 24px 0; }
+
+    .tool-card {
+      background: var(--surface);
+      border-radius: 8px; padding: 20px;
+      border-left: 4px solid var(--border);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0 16px;
+    }
+
+    .tool-card.memo-card  { border-left-color: #1565c0; }
+    .tool-card.cb-card    { border-left-color: var(--primary); }
+    .tool-card.memo2-card { border-left-color: #6a1b9a; }
+
+    .tool-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; font-weight: 700;
+      padding: 2px 10px; border-radius: 20px;
+      height: fit-content; white-space: nowrap;
+      grid-row: 1 / 3;
+      align-self: center;
+    }
+
+    .tool-card.memo-card  .tool-label { background: #e3f2fd; color: #1565c0; }
+    .tool-card.cb-card    .tool-label { background: var(--primary-light); color: var(--primary); }
+    .tool-card.memo2-card .tool-label { background: #f3e5f5; color: #6a1b9a; }
+
+    .tool-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .tool-card p  { font-size: 14px; color: var(--text-secondary); margin-bottom: 0; line-height: 1.7; }
+
+    /* 흐름 다이어그램 */
+    .flow-diagram {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px; margin: 24px 0;
+    }
+
+    .flow-diagram h3 {
+      font-size: 13px; font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 20px;
+    }
+
+    .flow-row {
+      display: flex; align-items: center;
+      gap: 8px; margin-bottom: 12px;
+      font-size: 14px; flex-wrap: wrap;
+    }
+
+    .flow-row:last-child { margin-bottom: 0; }
+
+    .flow-box {
+      padding: 6px 14px; border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .flow-parent  { background: #2a2a3e; color: #9cdcfe; }
+    .flow-renders { background: #2a1a1a; color: var(--code-bad); }
+    .flow-skip    { background: #1a2a1e; color: var(--code-good); }
+    .flow-arrow   { color: var(--text-secondary); font-size: 16px; }
+    .flow-desc    { color: var(--text-secondary); font-size: 13px; }
+
+    /* 적용 우선순위 */
+    .priority-list { list-style: none; padding: 0; margin: 20px 0; counter-reset: priority; }
+
+    .priority-list li {
+      counter-increment: priority;
+      display: flex; align-items: flex-start;
+      gap: 14px; padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0;
+    }
+
+    .priority-list li:last-child { border-bottom: none; }
+
+    .priority-list li::before {
+      content: counter(priority);
+      width: 26px; height: 26px;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .priority-list li.active::before {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .priority-title { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+    .priority-desc  { font-size: 14px; color: var(--text-secondary); }
+
+    /* 비교 테이블 */
+    .comparison-table {
+      width: 100%; border-collapse: collapse;
+      margin: 24px 0; font-size: 14px;
+    }
+
+    .comparison-table th {
+      background: var(--surface);
+      padding: 12px 16px;
+      text-align: left; font-weight: 600;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .comparison-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .comparison-table tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .badge-memo  { background: #e3f2fd; color: #1565c0; }
+    .badge-cb    { background: var(--primary-light); color: var(--primary); }
+    .badge-um    { background: #f3e5f5; color: #6a1b9a; }
+
+    /* 주의 박스 */
+    .warning-box {
+      background: #fff8e1;
+      border-left: 4px solid #f9a825;
+      border-radius: 0 8px 8px 0;
+      padding: 16px 20px; margin: 20px 0;
+    }
+
+    .warning-box p { margin-bottom: 0; font-size: 14px; color: #5d4037; }
+
+    /* 추가 학습 자료 */
+    .resource-list { list-style: none; padding: 0; }
+    .resource-list li { margin-bottom: 12px; }
+    .resource-list a {
+      color: var(--primary); text-decoration: none;
+      font-size: 15px; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .resource-list a::before {
+      content: ''; display: inline-block;
+      width: 6px; height: 6px;
+      background: var(--primary); border-radius: 50%; flex-shrink: 0;
+    }
+    .resource-list a:hover { text-decoration: underline; }
+
+    /* 푸터 */
+    footer { background: var(--footer-bg); color: #ffffff; padding: 48px 24px 32px; }
+    .footer-inner { max-width: var(--max-width); margin: 0 auto; }
+    .footer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-bottom: 40px; }
+    .footer-col h4 { font-size: 13px; font-weight: 600; color: #9e9e9e; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+    .footer-col p, .footer-col a { font-size: 14px; color: #bdbdbd; text-decoration: none; display: block; margin-bottom: 6px; line-height: 1.7; }
+    .footer-col a:hover { color: #ffffff; }
+    .footer-divider { border: none; border-top: 1px solid #2e2e40; margin-bottom: 20px; }
+    .footer-copyright { font-size: 13px; color: #616161; text-align: center; }
+
+    /* reveal */
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 640px) {
+      h1 { font-size: 22px; }
+      main { padding: 40px 20px 64px; }
+      .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+      .tool-card { grid-template-columns: 1fr; gap: 8px; }
+      .tool-label { width: fit-content; }
+      .comparison-table { font-size: 13px; }
+      .comparison-table th, .comparison-table td { padding: 10px 12px; }
+      .flow-row { gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="progress-bar"></div>
+
+  <header>
+    <div class="header-inner">
+      <a href="#" class="logo">매일<span>매일</span></a>
+    </div>
+  </header>
+
+  <main>
+
+    <div class="category-badge reveal">프론트엔드에 관련한 질문이에요.</div>
+
+    <h1 class="reveal">React에서 useCallback, useMemo, React.memo는 언제 써야 하나요?</h1>
+
+    <hr class="reveal" />
+
+    <!-- 핵심 요약 -->
+    <section class="reveal">
+      <h2>핵심 요약</h2>
+      <div class="summary-box">
+        <p>
+          <code>React.memo</code>는 props가 바뀌지 않으면 컴포넌트 리렌더링을 건너뜁니다.
+          <code>useCallback</code>은 함수의 참조를 고정해 불필요한 재생성을 막고,
+          <code>useMemo</code>는 연산 결과값의 참조를 고정합니다.
+          세 가지 모두 메모이제이션 비용이 있으므로, 실제 성능 문제가 확인된 곳에만 적용해야 합니다.
+        </p>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 왜 -->
+    <section class="reveal">
+      <h2>왜 이런 문제가 발생하나요?</h2>
+
+      <p>
+        React는 부모 컴포넌트가 리렌더링되면 자식도 기본적으로 함께 리렌더링됩니다.
+        함수와 객체는 참조 타입이라 부모가 리렌더링될 때마다 새 참조로 만들어집니다.
+        <code>React.memo</code>로 감싼 자식도 props 참조가 바뀌었다고 판단해 리렌더링됩니다.
+      </p>
+
+      <div class="flow-diagram">
+        <h3>리렌더링 흐름</h3>
+        <div class="flow-row">
+          <span class="flow-box flow-parent">부모 리렌더링</span>
+          <span class="flow-arrow">&#8594;</span>
+          <span class="flow-box flow-renders">함수/객체 새 참조 생성</span>
+          <span class="flow-arrow">&#8594;</span>
+          <span class="flow-box flow-renders">자식도 리렌더링</span>
+        </div>
+        <div class="flow-row" style="margin-top: 4px;">
+          <span class="flow-box flow-parent">부모 리렌더링</span>
+          <span class="flow-arrow">&#8594;</span>
+          <span class="flow-box flow-skip">useCallback / useMemo로 참조 고정</span>
+          <span class="flow-arrow">&#8594;</span>
+          <span class="flow-box flow-skip">React.memo가 리렌더링 차단</span>
+        </div>
+      </div>
+
+      <div class="tool-grid">
+        <div class="tool-card memo-card">
+          <span class="tool-label">React.memo</span>
+          <h3>컴포넌트 메모이제이션</h3>
+          <p>컴포넌트를 감싸서 이전 props와 새 props를 얕은 비교합니다. props가 같으면 리렌더링을 건너뜁니다. <code>useCallback</code>, <code>useMemo</code>와 함께 사용할 때 효과가 있습니다.</p>
+        </div>
+        <div class="tool-card cb-card">
+          <span class="tool-label">useCallback</span>
+          <h3>함수 참조 고정</h3>
+          <p>의존성 배열이 바뀌지 않으면 같은 함수 참조를 유지합니다. <code>React.memo</code>로 감싼 컴포넌트에 함수를 props로 내릴 때 함께 사용합니다.</p>
+        </div>
+        <div class="tool-card memo2-card">
+          <span class="tool-label">useMemo</span>
+          <h3>연산 결괏값 고정</h3>
+          <p>의존성 배열이 바뀌지 않으면 이전 계산 결과를 재사용합니다. 무거운 연산 결과나 객체/배열을 props로 내릴 때 참조를 고정합니다.</p>
+        </div>
+      </div>
+
+      <div class="warning-box">
+        <p>
+          세 가지 모두 메모이제이션된 값을 저장하고 의존성을 비교하는 비용이 있습니다.
+          단순한 컴포넌트나 빠른 연산에 무분별하게 적용하면 최적화가 아니라 오히려 성능을 저하시킬 수 있습니다.
+        </p>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- Bad -->
+    <section class="reveal">
+      <h2>예시 코드 — 잘못된 사용</h2>
+
+      <div class="code-block bad">
+        <div class="code-header">Bad — React.memo 없이 useCallback만 사용, 단순 연산에 useMemo 남용</div>
+        <pre><code><span class="keyword">import</span> { useState, useCallback, useMemo } <span class="keyword">from</span> <span class="string">'react'</span>;
+
+<span class="keyword">export default function</span> <span class="func">ProductPage</span>() {
+  <span class="keyword">const</span> [count, setCount] = <span class="func">useState</span>(<span class="number">0</span>);
+
+  <span class="comment">// 단순 증가 함수에 useCallback을 쓸 필요가 없습니다.</span>
+  <span class="keyword">const</span> increment = <span class="func">useCallback</span>(() => {
+    <span class="func">setCount</span>((c) => c + <span class="number">1</span>);
+  }, []);
+
+  <span class="comment">// 단순한 문자열 연산에 useMemo를 쓸 필요가 없습니다.</span>
+  <span class="keyword">const</span> label = <span class="func">useMemo</span>(() => {
+    <span class="keyword">return</span> <span class="string">`현재 수량: ${count}`</span>;
+  }, [count]);
+
+  <span class="keyword">const</span> handleSearch = <span class="func">useCallback</span>((value: <span class="type">string</span>) => {
+    console.<span class="func">log</span>(value);
+  }, []);
+
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">div</span>&gt;
+      &lt;<span class="tag">p</span>&gt;{label}&lt;/<span class="tag">p</span>&gt;
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={increment}&gt;추가&lt;/<span class="tag">button</span>&gt;
+      <span class="comment">// React.memo로 감싸지 않으면 useCallback은 아무 효과가 없습니다.</span>
+      &lt;<span class="tag">SearchBox</span> <span class="prop">onSearch</span>={handleSearch} /&gt;
+    &lt;/<span class="tag">div</span>&gt;
+  );
+}
+
+<span class="comment">// React.memo 없이 선언 — 부모 리렌더링 시 항상 함께 리렌더링됩니다.</span>
+<span class="keyword">function</span> <span class="func">SearchBox</span>({ onSearch }: { <span class="prop">onSearch</span>: (v: <span class="type">string</span>) => <span class="type">void</span> }) {
+  <span class="keyword">return</span> &lt;<span class="tag">input</span> <span class="prop">onChange</span>={(e) => <span class="func">onSearch</span>(e.target.value)} /&gt;;
+}</code></pre>
+      </div>
+
+      <p>
+        <code>React.memo</code> 없이 <code>useCallback</code>만 사용하면 함수 참조가 고정되어도
+        자식은 부모 리렌더링 시 함께 리렌더링됩니다.
+        <code>useCallback</code>과 <code>useMemo</code>는 <code>React.memo</code>와 짝을 이룰 때 의미가 생깁니다.
+      </p>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- Good -->
+    <section class="reveal">
+      <h2>올바른 사용법</h2>
+
+      <div class="code-block good">
+        <div class="code-header">Good — React.memo + useCallback 세트, useMemo는 무거운 연산에만</div>
+        <pre><code><span class="keyword">import</span> { useState, useCallback, useMemo, memo } <span class="keyword">from</span> <span class="string">'react'</span>;
+
+<span class="keyword">export default function</span> <span class="func">ProductPage</span>() {
+  <span class="keyword">const</span> [count, setCount] = <span class="func">useState</span>(<span class="number">0</span>);
+  <span class="keyword">const</span> [products, setProducts] = <span class="func">useState</span>&lt;<span class="type">Product</span>[]&gt;(initialProducts);
+  <span class="keyword">const</span> [filterText, setFilterText] = <span class="func">useState</span>(<span class="string">''</span>);
+
+  <span class="comment">// useMemo — 항목이 많은 리스트 필터링처럼 비용이 큰 연산에 사용합니다.</span>
+  <span class="comment">// filterText나 products가 바뀔 때만 재계산됩니다.</span>
+  <span class="keyword">const</span> filteredProducts = <span class="func">useMemo</span>(
+    () => products.<span class="func">filter</span>((p) => p.name.<span class="func">includes</span>(filterText)),
+    [products, filterText]
+  );
+
+  <span class="comment">// useCallback — React.memo로 감싼 자식에 함수 props를 내릴 때 사용합니다.</span>
+  <span class="comment">// count가 바뀌어도 handleFilter 참조는 유지됩니다.</span>
+  <span class="keyword">const</span> handleFilter = <span class="func">useCallback</span>((text: <span class="type">string</span>) => {
+    <span class="func">setFilterText</span>(text);
+  }, []);
+
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">div</span>&gt;
+      &lt;<span class="tag">p</span>&gt;총 {count}개 담음&lt;/<span class="tag">p</span>&gt;
+      <span class="comment">// handleFilter 참조가 고정되어 있어 FilterInput은 리렌더링되지 않습니다.</span>
+      &lt;<span class="tag">FilterInput</span> <span class="prop">onFilter</span>={handleFilter} /&gt;
+      &lt;<span class="tag">ProductList</span> <span class="prop">products</span>={filteredProducts} /&gt;
+    &lt;/<span class="tag">div</span>&gt;
+  );
+}
+
+<span class="comment">// React.memo — onFilter 참조가 바뀌지 않으면 리렌더링을 건너뜁니다.</span>
+<span class="keyword">const</span> FilterInput = <span class="func">memo</span>(<span class="keyword">function</span> <span class="func">FilterInput</span>({
+  onFilter,
+}: {
+  <span class="prop">onFilter</span>: (text: <span class="type">string</span>) => <span class="type">void</span>;
+}) {
+  <span class="keyword">return</span> &lt;<span class="tag">input</span> <span class="prop">onChange</span>={(e) => <span class="func">onFilter</span>(e.target.value)} /&gt;;
+});
+
+<span class="comment">// 아이템이 많고 렌더링 비용이 있을 때 React.memo가 효과적입니다.</span>
+<span class="keyword">const</span> ProductList = <span class="func">memo</span>(<span class="keyword">function</span> <span class="func">ProductList</span>({
+  products,
+}: {
+  <span class="prop">products</span>: <span class="type">Product</span>[];
+}) {
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">ul</span>&gt;
+      {products.<span class="func">map</span>((p) => (
+        &lt;<span class="tag">li</span> <span class="prop">key</span>={p.id}&gt;{p.name}&lt;/<span class="tag">li</span>&gt;
+      ))}
+    &lt;/<span class="tag">ul</span>&gt;
+  );
+});</code></pre>
+      </div>
+
+      <p>
+        <code>React.memo</code> + <code>useCallback</code>은 세트로 사용합니다.
+        <code>useMemo</code>는 계산 비용이 실제로 큰 연산에만 적용합니다.
+        단순한 연산이나 자주 바뀌는 값에 적용하면 메모이제이션 비용이 이득보다 커집니다.
+      </p>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 정리 -->
+    <section class="reveal">
+      <h2>정리</h2>
+
+      <p>최적화 훅을 꺼내기 전에 먼저 아래 순서로 접근하세요.</p>
+
+      <ul class="priority-list">
+        <li>
+          <div>
+            <div class="priority-title">상태를 실제로 사용하는 컴포넌트 가까이 내리기</div>
+            <div class="priority-desc">불필요하게 상위에 있는 상태가 자식 전체를 리렌더링시키는 경우를 먼저 제거합니다.</div>
+          </div>
+        </li>
+        <li>
+          <div>
+            <div class="priority-title">children prop으로 렌더링 범위 분리하기</div>
+            <div class="priority-desc"><code>props.children</code>은 부모 리렌더와 무관하게 bail-out됩니다. 컴포넌트 합성으로 범위를 좁히는 것이 훅보다 우선입니다.</div>
+          </div>
+        </li>
+        <li class="active">
+          <div>
+            <div class="priority-title">React.memo + useCallback / useMemo 적용</div>
+            <div class="priority-desc">위 두 방법으로 해결이 안 될 때, 실제 성능 문제가 측정된 곳에만 투입합니다.</div>
+          </div>
+        </li>
+      </ul>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>도구</th>
+            <th>메모이제이션 대상</th>
+            <th>짝</th>
+            <th>적합한 상황</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-memo">React.memo</span></td>
+            <td>컴포넌트</td>
+            <td><code>useCallback</code>, <code>useMemo</code></td>
+            <td>props가 자주 바뀌지 않는 자식 컴포넌트</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-cb">useCallback</span></td>
+            <td>함수 참조</td>
+            <td><code>React.memo</code></td>
+            <td>React.memo 자식에 함수 props를 내릴 때</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-um">useMemo</span></td>
+            <td>연산 결괏값</td>
+            <td><code>React.memo</code></td>
+            <td>비용이 큰 연산, 객체/배열을 props로 내릴 때</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 추가 학습 자료 -->
+    <section class="reveal">
+      <h2>추가 학습 자료 공유합니다.</h2>
+      <ul class="resource-list">
+        <li>
+          <a href="https://react.dev/reference/react/memo" target="_blank" rel="noopener noreferrer">
+            React 공식 문서 — memo
+          </a>
+        </li>
+        <li>
+          <a href="https://react.dev/reference/react/useCallback" target="_blank" rel="noopener noreferrer">
+            React 공식 문서 — useCallback
+          </a>
+        </li>
+        <li>
+          <a href="https://react.dev/reference/react/useMemo" target="_blank" rel="noopener noreferrer">
+            React 공식 문서 — useMemo
+          </a>
+        </li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <p>kangmu238@gmail.com</p>
+        </div>
+        <div class="footer-col">
+          <h4>Socials</h4>
+          <a href="https://github.com/wookminkang" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+        <div class="footer-col">
+          <h4>Etc</h4>
+          <a href="#">팀 소개</a>
+          <a href="#">서비스 피드백</a>
+        </div>
+      </div>
+      <hr class="footer-divider" />
+      <p class="footer-copyright">Copyright &copy; 2026 매일매일. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    const progressBar = document.getElementById('progress-bar');
+    window.addEventListener('scroll', () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      progressBar.style.width = (docHeight > 0 ? (scrollTop / docHeight) * 100 : 0) + '%';
+    });
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+  </script>
+
+</body>
+</html>

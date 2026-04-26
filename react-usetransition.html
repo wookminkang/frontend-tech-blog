@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>무거운 상태 업데이트 때문에 UI가 멈추는 현상, useTransition으로 어떻게 해결하나요? — 매일매일</title>
+  <meta name="description" content="useTransition은 상태 업데이트에 우선순위를 부여해 무거운 렌더링 중에도 UI 반응성을 유지하는 React 18의 동시성 훅입니다." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #fe6e00;
+      --primary-light: #fff3e8;
+      --bg: #ffffff;
+      --surface: #F9F9F9;
+      --text: #212121;
+      --text-secondary: #757575;
+      --border: #E0E0E0;
+      --code-bg: #1e1e1e;
+      --code-bad: #e05252;
+      --code-good: #4caf7d;
+      --footer-bg: #1A1A2E;
+      --max-width: 720px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 16px; line-height: 1.8;
+      color: var(--text); background: var(--bg);
+    }
+
+    #progress-bar {
+      position: fixed; top: 0; left: 0;
+      height: 3px; width: 0%;
+      background: var(--primary); z-index: 1000;
+      transition: width 0.1s linear;
+    }
+
+    header {
+      position: sticky; top: 0;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .header-inner {
+      max-width: var(--max-width); margin: 0 auto;
+      padding: 0 24px; height: 56px;
+      display: flex; align-items: center;
+    }
+
+    .logo { font-size: 18px; font-weight: 700; color: var(--text); text-decoration: none; }
+    .logo span { color: var(--primary); }
+
+    main { max-width: var(--max-width); margin: 0 auto; padding: 56px 24px 80px; }
+
+    .category-badge {
+      display: inline-block;
+      padding: 6px 14px 6px 12px;
+      background: var(--primary-light);
+      border-left: 4px solid var(--primary);
+      color: var(--primary);
+      font-size: 13px; font-weight: 600;
+      border-radius: 0 4px 4px 0;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 28px; font-weight: 700;
+      line-height: 1.3; letter-spacing: -0.5px;
+      margin-bottom: 32px;
+    }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+    h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; line-height: 1.3; }
+    p { color: var(--text); margin-bottom: 16px; }
+    ul, ol { padding-left: 24px; margin-bottom: 16px; }
+    li { margin-bottom: 8px; line-height: 1.8; }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; color: var(--primary);
+      background: var(--primary-light);
+      padding: 2px 6px; border-radius: 4px;
+    }
+
+    /* 코드 블록 */
+    .code-block { margin: 20px 0; border-radius: 10px; overflow: hidden; }
+
+    .code-header {
+      padding: 10px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; font-weight: 500;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .code-header::before {
+      content: ''; display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%; flex-shrink: 0;
+    }
+
+    .code-block.bad .code-header {
+      background: #2a1a1a; color: var(--code-bad);
+      border-bottom: 2px solid var(--code-bad);
+    }
+    .code-block.bad .code-header::before { background: var(--code-bad); }
+
+    .code-block.good .code-header {
+      background: #1a2a1e; color: var(--code-good);
+      border-bottom: 2px solid var(--code-good);
+    }
+    .code-block.good .code-header::before { background: var(--code-good); }
+
+    pre { background: var(--code-bg); padding: 20px; overflow-x: auto; margin: 0; }
+
+    pre code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; line-height: 1.6;
+      color: #d4d4d4; background: none;
+      padding: 0; border-radius: 0;
+    }
+
+    .comment { color: #6a9955; }
+    .keyword { color: #569cd6; }
+    .string { color: #ce9178; }
+    .func { color: #dcdcaa; }
+    .type { color: #4ec9b0; }
+    .number { color: #b5cea8; }
+    .prop { color: #9cdcfe; }
+    .tag { color: #f28b54; }
+
+    /* 요약 박스 */
+    .summary-box {
+      background: var(--surface);
+      border-left: 4px solid var(--primary);
+      border-radius: 0 8px 8px 0;
+      padding: 20px 24px; margin-bottom: 16px;
+    }
+    .summary-box p { margin-bottom: 0; }
+
+    /* 우선순위 비교 카드 */
+    .priority-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 12px; margin: 24px 0;
+    }
+
+    .priority-card {
+      border-radius: 10px; padding: 20px;
+      background: var(--surface);
+    }
+
+    .priority-card.urgent {
+      border-top: 3px solid var(--code-bad);
+    }
+
+    .priority-card.transition {
+      border-top: 3px solid var(--primary);
+    }
+
+    .priority-card .p-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 10px; display: block;
+    }
+
+    .priority-card.urgent .p-label { color: var(--code-bad); }
+    .priority-card.transition .p-label { color: var(--primary); }
+
+    .priority-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .priority-card ul { padding-left: 16px; margin: 0; }
+    .priority-card li { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; line-height: 1.6; }
+
+    /* isPending 설명 박스 */
+    .info-box {
+      background: var(--primary-light);
+      border-left: 4px solid var(--primary);
+      border-radius: 0 8px 8px 0;
+      padding: 16px 20px; margin: 20px 0;
+    }
+    .info-box p { margin: 0; font-size: 14px; }
+    .info-box strong { color: var(--primary); }
+
+    /* 비교 테이블 */
+    .comparison-table {
+      width: 100%; border-collapse: collapse;
+      margin: 24px 0; font-size: 14px;
+    }
+
+    .comparison-table th {
+      background: var(--surface);
+      padding: 12px 16px;
+      text-align: left; font-weight: 600;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .comparison-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .comparison-table tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .badge-default { background: #f5f5f5; color: #424242; }
+    .badge-transition { background: var(--primary-light); color: var(--primary); }
+    .badge-yes { background: #e8f5e9; color: #2e7d32; font-family: 'Pretendard', sans-serif; }
+    .badge-no  { background: #fce4ec; color: #c62828; font-family: 'Pretendard', sans-serif; }
+
+    /* 추가 학습 자료 */
+    .resource-list { list-style: none; padding: 0; }
+    .resource-list li { margin-bottom: 12px; }
+    .resource-list a {
+      color: var(--primary); text-decoration: none;
+      font-size: 15px; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .resource-list a::before {
+      content: ''; display: inline-block;
+      width: 6px; height: 6px;
+      background: var(--primary); border-radius: 50%; flex-shrink: 0;
+    }
+    .resource-list a:hover { text-decoration: underline; }
+
+    /* 푸터 */
+    footer { background: var(--footer-bg); color: #ffffff; padding: 48px 24px 32px; }
+    .footer-inner { max-width: var(--max-width); margin: 0 auto; }
+    .footer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-bottom: 40px; }
+    .footer-col h4 { font-size: 13px; font-weight: 600; color: #9e9e9e; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+    .footer-col p, .footer-col a { font-size: 14px; color: #bdbdbd; text-decoration: none; display: block; margin-bottom: 6px; line-height: 1.7; }
+    .footer-col a:hover { color: #ffffff; }
+    .footer-divider { border: none; border-top: 1px solid #2e2e40; margin-bottom: 20px; }
+    .footer-copyright { font-size: 13px; color: #616161; text-align: center; }
+
+    /* reveal */
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 640px) {
+      h1 { font-size: 22px; }
+      main { padding: 40px 20px 64px; }
+      .priority-grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+      .comparison-table { font-size: 13px; }
+      .comparison-table th, .comparison-table td { padding: 10px 10px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="progress-bar"></div>
+
+  <header>
+    <div class="header-inner">
+      <a href="#" class="logo">매일<span>매일</span></a>
+    </div>
+  </header>
+
+  <main>
+
+    <div class="category-badge reveal">프론트엔드에 관련한 질문이에요.</div>
+    <h1 class="reveal">무거운 상태 업데이트 때문에 UI가 멈추는 현상, useTransition으로 어떻게 해결하나요?</h1>
+
+    <hr class="reveal" />
+
+    <!-- 핵심 요약 -->
+    <section class="reveal">
+      <h2>핵심 요약</h2>
+      <div class="summary-box">
+        <p>
+          <code>useTransition</code>은 React 18에서 도입된 훅으로, 특정 상태 업데이트를 "덜 급한 업데이트"로 표시할 수 있게 해줍니다.
+          React는 이렇게 표시된 업데이트를 잠시 미뤄두고, 버튼 클릭이나 텍스트 입력처럼 사용자가 즉각적인 반응을 기대하는 작업을 먼저 처리합니다.
+          결과적으로 무거운 렌더링이 진행되는 동안에도 UI가 굳지 않고 반응성을 유지할 수 있습니다.
+        </p>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 왜 -->
+    <section class="reveal">
+      <h2>왜 이런 문제가 발생하나요?</h2>
+
+      <p>
+        React는 기본적으로 상태가 바뀌면 즉시 렌더링을 시작합니다.
+        이때 렌더링할 컴포넌트가 많거나 계산이 무거우면, 그 렌더링이 끝날 때까지 다른 어떤 작업도 처리하지 못합니다.
+      </p>
+      <p>
+        예를 들어 검색창에 글자를 입력할 때마다 10,000개 항목을 필터링해야 한다면,
+        필터링 렌더링이 완료될 때까지 입력창의 커서조차 움직이지 않는 "UI가 굳는" 현상이 발생합니다.
+      </p>
+      <p><code>useTransition</code>은 이 문제를 해결하기 위해 상태 업데이트에 우선순위를 부여합니다.</p>
+
+      <div class="priority-grid">
+        <div class="priority-card urgent">
+          <span class="p-label">Urgent — 즉시 처리</span>
+          <h3>급한 업데이트</h3>
+          <ul>
+            <li>텍스트 입력창의 글자 반영</li>
+            <li>버튼 클릭 애니메이션</li>
+            <li>체크박스 토글</li>
+          </ul>
+        </div>
+        <div class="priority-card transition">
+          <span class="p-label">Transition — 여유 있을 때</span>
+          <h3>전환 업데이트</h3>
+          <ul>
+            <li>검색 결과 목록 렌더링</li>
+            <li>탭 전환 콘텐츠 렌더링</li>
+            <li>페이지 이동 시 데이터 렌더링</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>
+        <code>startTransition</code>으로 감싼 상태 업데이트는 "전환 업데이트"로 분류되어,
+        급한 업데이트가 들어오면 잠시 중단되고 급한 업데이트를 먼저 처리합니다.
+      </p>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- Bad -->
+    <section class="reveal">
+      <h2>예시 코드 — 잘못된 사용</h2>
+
+      <div class="code-block bad">
+        <div class="code-header">Bad — 타이핑할 때마다 10,000개 항목이 즉시 렌더링</div>
+        <pre><code><span class="keyword">import</span> { useState } <span class="keyword">from</span> <span class="string">'react'</span>;
+
+<span class="keyword">const</span> ITEMS = <span class="type">Array</span>.<span class="func">from</span>({ length: <span class="number">10000</span> }, (_, i) => <span class="string">`항목 </span>${i + <span class="number">1</span>}<span class="string">`</span>);
+
+<span class="keyword">function</span> <span class="func">SlowList</span>({ query }: { query: <span class="type">string</span> }) {
+  <span class="keyword">const</span> filtered = ITEMS.<span class="func">filter</span>((item) => item.<span class="func">includes</span>(query));
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">ul</span>&gt;
+      {filtered.<span class="func">map</span>((item) => (
+        &lt;<span class="tag">li</span> <span class="prop">key</span>={item}&gt;{item}&lt;/<span class="tag">li</span>&gt;
+      ))}
+    &lt;/<span class="tag">ul</span>&gt;
+  );
+}
+
+<span class="keyword">export default function</span> <span class="func">SearchPage</span>() {
+  <span class="keyword">const</span> [query, setQuery] = <span class="func">useState</span>(<span class="string">''</span>);
+
+  <span class="keyword">return</span> (
+    &lt;&gt;
+      &lt;<span class="tag">input</span>
+        <span class="prop">value</span>={query}
+        <span class="prop">onChange</span>={(e) => <span class="func">setQuery</span>(e.target.value)} <span class="comment">// 타이핑 즉시 무거운 렌더링 시작</span>
+        <span class="prop">placeholder</span>=<span class="string">"검색어를 입력하세요"</span>
+      /&gt;
+      &lt;<span class="tag">SlowList</span> <span class="prop">query</span>={query} /&gt;
+    &lt;/&gt;
+  );
+}</code></pre>
+      </div>
+
+      <p>
+        <code>setQuery</code>가 호출되는 순간 React는 즉시 <code>SlowList</code> 렌더링을 시작합니다.
+        10,000개 항목 필터링이 끝나기 전까지 입력창도 멈추기 때문에,
+        빠르게 타이핑하면 글자가 뒤늦게 나타나거나 화면이 버벅이는 현상이 발생합니다.
+      </p>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- Good -->
+    <section class="reveal">
+      <h2>올바른 사용법</h2>
+
+      <div class="code-block good">
+        <div class="code-header">Good — 입력창은 즉시 반응, 리스트 렌더링은 startTransition으로 처리</div>
+        <pre><code><span class="keyword">import</span> { useState, useTransition } <span class="keyword">from</span> <span class="string">'react'</span>;
+
+<span class="keyword">const</span> ITEMS = <span class="type">Array</span>.<span class="func">from</span>({ length: <span class="number">10000</span> }, (_, i) => <span class="string">`항목 </span>${i + <span class="number">1</span>}<span class="string">`</span>);
+
+<span class="keyword">function</span> <span class="func">SlowList</span>({ query }: { query: <span class="type">string</span> }) {
+  <span class="keyword">const</span> filtered = ITEMS.<span class="func">filter</span>((item) => item.<span class="func">includes</span>(query));
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">ul</span>&gt;
+      {filtered.<span class="func">map</span>((item) => (
+        &lt;<span class="tag">li</span> <span class="prop">key</span>={item}&gt;{item}&lt;/<span class="tag">li</span>&gt;
+      ))}
+    &lt;/<span class="tag">ul</span>&gt;
+  );
+}
+
+<span class="keyword">export default function</span> <span class="func">SearchPage</span>() {
+  <span class="keyword">const</span> [inputValue, setInputValue] = <span class="func">useState</span>(<span class="string">''</span>); <span class="comment">// 입력창에 즉시 반영</span>
+  <span class="keyword">const</span> [query, setQuery] = <span class="func">useState</span>(<span class="string">''</span>);         <span class="comment">// 리스트에 전달되는 값</span>
+  <span class="keyword">const</span> [isPending, startTransition] = <span class="func">useTransition</span>();
+
+  <span class="keyword">function</span> <span class="func">handleChange</span>(e: <span class="type">React.ChangeEvent</span>&lt;<span class="type">HTMLInputElement</span>&gt;) {
+    <span class="func">setInputValue</span>(e.target.value); <span class="comment">// 급한 업데이트 — 입력창 즉시 반응</span>
+
+    <span class="func">startTransition</span>(() => {
+      <span class="func">setQuery</span>(e.target.value); <span class="comment">// 전환 업데이트 — 여유 있을 때 처리</span>
+    });
+  }
+
+  <span class="keyword">return</span> (
+    &lt;&gt;
+      &lt;<span class="tag">input</span>
+        <span class="prop">value</span>={inputValue}
+        <span class="prop">onChange</span>={handleChange}
+        <span class="prop">placeholder</span>=<span class="string">"검색어를 입력하세요"</span>
+      /&gt;
+      {isPending &amp;&amp; &lt;<span class="tag">p</span>&gt;목록을 불러오는 중...&lt;/<span class="tag">p</span>&gt;}
+      &lt;<span class="tag">SlowList</span> <span class="prop">query</span>={query} /&gt;
+    &lt;/&gt;
+  );
+}</code></pre>
+      </div>
+
+      <p>상태를 두 개로 분리한 것이 핵심입니다.</p>
+      <ul>
+        <li><code>inputValue</code>: 입력창에 즉시 반영되어야 하는 값 — <code>startTransition</code> 밖에서 업데이트합니다.</li>
+        <li><code>query</code>: <code>SlowList</code>에 전달되는 값 — <code>startTransition</code> 안에서 업데이트합니다.</li>
+      </ul>
+
+      <div class="info-box">
+        <p>
+          <strong>isPending</strong>은 전환 업데이트가 아직 처리 중일 때 <code>true</code>가 됩니다.
+          이를 이용해 "목록을 불러오는 중..." 같은 로딩 피드백을 사용자에게 보여줄 수 있습니다.
+        </p>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 정리 -->
+    <section class="reveal">
+      <h2>정리</h2>
+
+      <p>
+        <code>useTransition</code>은 상태 업데이트에 우선순위를 부여하여
+        무거운 렌더링 중에도 UI 반응성을 유지하는 React 18의 동시성 훅입니다.
+      </p>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>구분</th>
+            <th><span class="badge badge-default">일반 setState</span></th>
+            <th><span class="badge badge-transition">startTransition</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>처리 시점</td>
+            <td>즉시 동기 렌더링</td>
+            <td>급한 업데이트 이후 처리</td>
+          </tr>
+          <tr>
+            <td>UI 블로킹</td>
+            <td><span class="badge badge-no">발생</span></td>
+            <td><span class="badge badge-yes">방지</span></td>
+          </tr>
+          <tr>
+            <td>진행 여부 확인</td>
+            <td>불가</td>
+            <td><code>isPending</code>으로 확인 가능</td>
+          </tr>
+          <tr>
+            <td>주요 사용처</td>
+            <td>입력창, 버튼 상태 등</td>
+            <td>검색 결과, 탭 전환, 페이지 이동</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 추가 학습 자료 -->
+    <section class="reveal">
+      <h2>추가 학습 자료 공유합니다.</h2>
+      <ul class="resource-list">
+        <li>
+          <a href="https://react.dev/reference/react/useTransition" target="_blank" rel="noopener noreferrer">
+            React 공식 문서 — useTransition
+          </a>
+        </li>
+        <li>
+          <a href="https://react.dev/learn/keeping-the-ui-responsive" target="_blank" rel="noopener noreferrer">
+            React 공식 문서 — Keeping the UI Responsive
+          </a>
+        </li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <p>kangmu238@gmail.com</p>
+        </div>
+        <div class="footer-col">
+          <h4>Socials</h4>
+          <a href="https://github.com/wookminkang" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+        <div class="footer-col">
+          <h4>Etc</h4>
+          <a href="#">팀 소개</a>
+          <a href="#">서비스 피드백</a>
+        </div>
+      </div>
+      <hr class="footer-divider" />
+      <p class="footer-copyright">Copyright &copy; 2026 매일매일. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    const progressBar = document.getElementById('progress-bar');
+    window.addEventListener('scroll', () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      progressBar.style.width = (docHeight > 0 ? (scrollTop / docHeight) * 100 : 0) + '%';
+    });
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+  </script>
+
+</body>
+</html>

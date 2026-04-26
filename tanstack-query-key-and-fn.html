@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TanStack Query에서 queryKey와 queryFn은 어떻게 동작하나요? — 매일매일</title>
+  <meta name="description" content="queryKey는 캐시 식별자입니다. queryFn에서 사용하는 모든 변수를 포함해야 하며, queryFn은 실패 시 에러를 throw해야 합니다." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #fe6e00;
+      --primary-light: #fff3e8;
+      --bg: #ffffff;
+      --surface: #F9F9F9;
+      --text: #212121;
+      --text-secondary: #757575;
+      --border: #E0E0E0;
+      --code-bg: #1e1e1e;
+      --code-bad: #e05252;
+      --code-good: #4caf7d;
+      --footer-bg: #1A1A2E;
+      --max-width: 720px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 16px; line-height: 1.8; color: var(--text); background: var(--bg); }
+
+    #progress-bar { position: fixed; top: 0; left: 0; height: 3px; width: 0%; background: var(--primary); z-index: 1000; transition: width 0.1s linear; }
+
+    header { position: sticky; top: 0; background: var(--bg); border-bottom: 1px solid var(--border); z-index: 100; }
+    .header-inner { max-width: var(--max-width); margin: 0 auto; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-size: 18px; font-weight: 700; color: var(--text); text-decoration: none; }
+    .logo span { color: var(--primary); }
+    .series-badge { font-size: 12px; color: var(--text-secondary); background: var(--surface); border: 1px solid var(--border); padding: 3px 10px; border-radius: 20px; }
+
+    main { max-width: var(--max-width); margin: 0 auto; padding: 56px 24px 80px; }
+
+    .category-badge { display: inline-block; padding: 6px 14px 6px 12px; background: var(--primary-light); border-left: 4px solid var(--primary); color: var(--primary); font-size: 13px; font-weight: 600; border-radius: 0 4px 4px 0; margin-bottom: 20px; }
+
+    h1 { font-size: 28px; font-weight: 700; line-height: 1.3; letter-spacing: -0.5px; margin-bottom: 32px; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+    h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; line-height: 1.3; }
+    p { color: var(--text); margin-bottom: 16px; }
+    ul, ol { padding-left: 24px; margin-bottom: 16px; }
+    li { margin-bottom: 8px; line-height: 1.8; }
+
+    code { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--primary); background: var(--primary-light); padding: 2px 6px; border-radius: 4px; }
+
+    .code-block { margin: 20px 0; border-radius: 10px; overflow: hidden; }
+    .code-header { padding: 10px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+    .code-header::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .code-block.bad .code-header { background: #2a1a1a; color: var(--code-bad); border-bottom: 2px solid var(--code-bad); }
+    .code-block.bad .code-header::before { background: var(--code-bad); }
+    .code-block.good .code-header { background: #1a2a1e; color: var(--code-good); border-bottom: 2px solid var(--code-good); }
+    .code-block.good .code-header::before { background: var(--code-good); }
+    .code-block.neutral .code-header { background: #1e1e2e; color: #9cdcfe; border-bottom: 2px solid #3a3a5e; }
+    .code-block.neutral .code-header::before { background: #9cdcfe; }
+
+    pre { background: var(--code-bg); padding: 20px; overflow-x: auto; margin: 0; }
+    pre code { font-family: 'JetBrains Mono', monospace; font-size: 14px; line-height: 1.6; color: #d4d4d4; background: none; padding: 0; border-radius: 0; }
+
+    .comment { color: #6a9955; }
+    .keyword { color: #569cd6; }
+    .string { color: #ce9178; }
+    .func { color: #dcdcaa; }
+    .type { color: #4ec9b0; }
+    .number { color: #b5cea8; }
+    .prop { color: #9cdcfe; }
+    .tag { color: #f28b54; }
+
+    .summary-box { background: var(--surface); border-left: 4px solid var(--primary); border-radius: 0 8px 8px 0; padding: 20px 24px; margin-bottom: 16px; }
+    .summary-box p { margin-bottom: 0; }
+
+    /* 캐시 키 시각화 */
+    .cache-visual { background: var(--code-bg); border-radius: 10px; padding: 20px 24px; margin: 24px 0; }
+    .cache-visual .cv-label { font-family: 'Pretendard', sans-serif; font-size: 12px; font-weight: 600; color: #9e9e9e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; display: block; }
+    .cache-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+    .cache-row:last-child { margin-bottom: 0; }
+    .cache-key { color: #9cdcfe; }
+    .cache-arrow { color: #757575; }
+    .cache-desc { color: #6a9955; }
+
+    /* 규칙 카드 */
+    .rule-grid { display: grid; gap: 12px; margin: 24px 0; }
+    .rule-card { background: var(--surface); border-radius: 8px; padding: 16px 18px; display: flex; gap: 14px; align-items: flex-start; border-left: 4px solid var(--primary); }
+    .rule-icon { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 4px 8px; border-radius: 6px; flex-shrink: 0; white-space: nowrap; }
+    .rule-body h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+    .rule-body p { font-size: 13px; color: var(--text-secondary); margin-bottom: 0; line-height: 1.6; }
+
+    /* 비교 테이블 */
+    .comparison-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px; }
+    .comparison-table th { background: var(--surface); padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 2px solid var(--border); }
+    .comparison-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .comparison-table tr:last-child td { border-bottom: none; }
+
+    /* 시리즈 네비게이션 */
+    .series-nav { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-top: 40px; }
+    .series-nav h3 { font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+    .series-nav-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .series-nav-item:last-child { border-bottom: none; }
+    .series-nav-item.current .nav-title { color: var(--primary); font-weight: 600; }
+    .nav-num { font-size: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; margin-right: 12px; }
+    .nav-title { font-size: 14px; color: var(--text); }
+    .nav-current-badge { font-size: 11px; font-weight: 700; background: var(--primary); color: #fff; padding: 2px 8px; border-radius: 20px; flex-shrink: 0; }
+
+    .resource-list { list-style: none; padding: 0; }
+    .resource-list li { margin-bottom: 12px; }
+    .resource-list a { color: var(--primary); text-decoration: none; font-size: 15px; display: inline-flex; align-items: center; gap: 6px; }
+    .resource-list a::before { content: ''; display: inline-block; width: 6px; height: 6px; background: var(--primary); border-radius: 50%; flex-shrink: 0; }
+    .resource-list a:hover { text-decoration: underline; }
+
+    footer { background: var(--footer-bg); color: #ffffff; padding: 48px 24px 32px; }
+    .footer-inner { max-width: var(--max-width); margin: 0 auto; }
+    .footer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-bottom: 40px; }
+    .footer-col h4 { font-size: 13px; font-weight: 600; color: #9e9e9e; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+    .footer-col p, .footer-col a { font-size: 14px; color: #bdbdbd; text-decoration: none; display: block; margin-bottom: 6px; line-height: 1.7; }
+    .footer-col a:hover { color: #ffffff; }
+    .footer-divider { border: none; border-top: 1px solid #2e2e40; margin-bottom: 20px; }
+    .footer-copyright { font-size: 13px; color: #616161; text-align: center; }
+
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 640px) {
+      h1 { font-size: 22px; }
+      main { padding: 40px 20px 64px; }
+      .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+      .comparison-table { font-size: 13px; }
+      .comparison-table th, .comparison-table td { padding: 10px 10px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="progress-bar"></div>
+
+  <header>
+    <div class="header-inner">
+      <a href="#" class="logo">매일<span>매일</span></a>
+      <span class="series-badge">TanStack Query 1 / 2</span>
+    </div>
+  </header>
+
+  <main>
+
+    <div class="category-badge reveal">프론트엔드에 관련한 질문이에요.</div>
+    <h1 class="reveal">TanStack Query에서 queryKey와 queryFn은 어떻게 동작하나요?</h1>
+
+    <hr class="reveal" />
+
+    <section class="reveal">
+      <h2>핵심 요약</h2>
+      <div class="summary-box">
+        <p>
+          <code>queryKey</code>는 캐시를 식별하는 고유 키입니다. 배열 형태로 선언하며,
+          <code>queryFn</code> 내부에서 사용하는 모든 변수를 포함해야 합니다.
+          <code>queryFn</code>은 데이터를 가져오는 비동기 함수로, 실패 시 반드시 에러를 throw해야
+          TanStack Query가 에러 상태를 인식합니다.
+        </p>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <section class="reveal">
+      <h2>왜 이런 문제가 발생하나요?</h2>
+
+      <p>
+        TanStack Query는 <code>queryKey</code>를 기준으로 캐시를 저장하고 불러옵니다.
+        키가 같으면 같은 캐시를 사용하고, 키가 다르면 새로운 요청을 보냅니다.
+      </p>
+
+      <div class="cache-visual">
+        <span class="cv-label">queryKey 구조 예시</span>
+        <div class="cache-row"><span class="cache-key">['posts']</span><span class="cache-arrow">→</span><span class="cache-desc">// 전체 포스트</span></div>
+        <div class="cache-row"><span class="cache-key">['posts', 1]</span><span class="cache-arrow">→</span><span class="cache-desc">// id가 1인 포스트</span></div>
+        <div class="cache-row"><span class="cache-key">['posts', { status: 'draft' }]</span><span class="cache-arrow">→</span><span class="cache-desc">// draft 상태의 포스트</span></div>
+        <div class="cache-row"><span class="cache-key">['posts', userId, { page: 2 }]</span><span class="cache-arrow">→</span><span class="cache-desc">// userId가 바뀌면 새 요청</span></div>
+      </div>
+
+      <div class="rule-grid">
+        <div class="rule-card">
+          <span class="rule-icon">규칙 1</span>
+          <div class="rule-body">
+            <h3>queryFn의 모든 의존성을 queryKey에 포함</h3>
+            <p>외부 변수를 queryFn에서 참조하지만 queryKey에 빠뜨리면, 그 변수가 바뀌어도 캐시가 유효하다고 판단해 새 요청을 보내지 않습니다.</p>
+          </div>
+        </div>
+        <div class="rule-card">
+          <span class="rule-icon">규칙 2</span>
+          <div class="rule-body">
+            <h3>fetch 실패 시 에러를 직접 throw</h3>
+            <p><code>fetch</code>는 4xx, 5xx 응답에도 에러를 throw하지 않습니다. 응답 상태를 확인하고 실패 시 직접 throw해야 <code>isError</code>가 작동합니다.</p>
+          </div>
+        </div>
+        <div class="rule-card">
+          <span class="rule-icon">규칙 3</span>
+          <div class="rule-body">
+            <h3>queryKey는 직렬화 가능한 값만 포함</h3>
+            <p>함수, 클래스 인스턴스, Symbol 등 직렬화가 안 되는 값은 queryKey에 사용할 수 없습니다. 문자열, 숫자, 객체, 배열만 사용하세요.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <section class="reveal">
+      <h2>예시 코드 — 잘못된 사용</h2>
+
+      <div class="code-block bad">
+        <div class="code-header">Bad — queryKey에 의존성 누락, fetch 에러 미처리</div>
+        <pre><code><span class="keyword">import</span> { useQuery } <span class="keyword">from</span> <span class="string">'@tanstack/react-query'</span>;
+
+<span class="comment">// queryFn에서 userId를 사용하지만 queryKey에 포함하지 않았습니다.</span>
+<span class="comment">// userId가 바뀌어도 이전 사용자의 데이터가 계속 표시됩니다.</span>
+<span class="keyword">function</span> <span class="func">useUserPosts</span>(userId: <span class="type">number</span>) {
+  <span class="keyword">return</span> <span class="func">useQuery</span>({
+    queryKey: [<span class="string">'posts'</span>],  <span class="comment">// userId 누락</span>
+    queryFn: () => <span class="func">fetchPostsByUser</span>(userId),
+  });
+}
+
+<span class="comment">// fetch는 4xx/5xx에 에러를 throw하지 않습니다.</span>
+<span class="comment">// isError가 false인 채로 에러 응답이 data에 담깁니다.</span>
+<span class="keyword">function</span> <span class="func">usePost</span>(id: <span class="type">number</span>) {
+  <span class="keyword">return</span> <span class="func">useQuery</span>({
+    queryKey: [<span class="string">'posts'</span>, id],
+    queryFn: <span class="keyword">async</span> () => {
+      <span class="keyword">const</span> res = <span class="keyword">await</span> <span class="func">fetch</span>(<span class="string">`/api/posts/${id}`</span>);
+      <span class="keyword">return</span> res.<span class="func">json</span>(); <span class="comment">// 404여도 에러 없이 진행됩니다.</span>
+    },
+  });
+}</code></pre>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <section class="reveal">
+      <h2>올바른 사용법</h2>
+
+      <div class="code-block good">
+        <div class="code-header">Good — 의존성 포함, 에러 throw</div>
+        <pre><code><span class="keyword">import</span> { useQuery } <span class="keyword">from</span> <span class="string">'@tanstack/react-query'</span>;
+
+<span class="comment">// queryFn에서 사용하는 userId를 queryKey에 포함합니다.</span>
+<span class="comment">// userId가 바뀌면 자동으로 새 요청이 발생합니다.</span>
+<span class="keyword">function</span> <span class="func">useUserPosts</span>(userId: <span class="type">number</span>) {
+  <span class="keyword">return</span> <span class="func">useQuery</span>({
+    queryKey: [<span class="string">'posts'</span>, <span class="string">'user'</span>, userId], <span class="comment">// 의존성 포함</span>
+    queryFn: () => <span class="func">fetchPostsByUser</span>(userId),
+  });
+}
+
+<span class="comment">// fetch 응답 상태를 확인하고 실패 시 에러를 throw합니다.</span>
+<span class="keyword">function</span> <span class="func">usePost</span>(id: <span class="type">number</span>) {
+  <span class="keyword">return</span> <span class="func">useQuery</span>({
+    queryKey: [<span class="string">'posts'</span>, id],
+    queryFn: <span class="keyword">async</span> () => {
+      <span class="keyword">const</span> res = <span class="keyword">await</span> <span class="func">fetch</span>(<span class="string">`/api/posts/${id}`</span>);
+      <span class="keyword">if</span> (!res.ok) {
+        <span class="keyword">throw new</span> <span class="func">Error</span>(<span class="string">`포스트 조회 실패: ${res.status}`</span>);
+      }
+      <span class="keyword">return</span> res.<span class="func">json</span>();
+    },
+  });
+}</code></pre>
+      </div>
+
+      <div class="code-block good">
+        <div class="code-header">Good — 복합 파라미터와 staleTime 설정</div>
+        <pre><code><span class="comment">// 쿼리 파라미터를 객체로 묶어 queryKey에서 관리합니다.</span>
+<span class="keyword">function</span> <span class="func">usePosts</span>({ page, status, userId }: <span class="type">PostsParams</span>) {
+  <span class="keyword">return</span> <span class="func">useQuery</span>({
+    queryKey: [<span class="string">'posts'</span>, { page, status, userId }],
+    queryFn: () => <span class="func">fetchPosts</span>({ page, status, userId }),
+    <span class="comment">// 5분간 신선 상태를 유지합니다. 이 시간 안에는 재요청하지 않습니다.</span>
+    staleTime: <span class="number">1000</span> * <span class="number">60</span> * <span class="number">5</span>,
+  });
+}
+
+<span class="comment">// 컴포넌트에서 사용</span>
+<span class="keyword">function</span> <span class="func">PostList</span>({ userId }: { userId: <span class="type">number</span> }) {
+  <span class="keyword">const</span> { data, isLoading, isError, error } = <span class="func">useUserPosts</span>(userId);
+
+  <span class="keyword">if</span> (isLoading) <span class="keyword">return</span> &lt;<span class="tag">p</span>&gt;불러오는 중...&lt;/<span class="tag">p</span>&gt;;
+  <span class="keyword">if</span> (isError) <span class="keyword">return</span> &lt;<span class="tag">p</span>&gt;{error.message}&lt;/<span class="tag">p</span>&gt;;
+
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">ul</span>&gt;
+      {data.<span class="func">map</span>((post) => (
+        &lt;<span class="tag">li</span> <span class="prop">key</span>={post.id}&gt;{post.title}&lt;/<span class="tag">li</span>&gt;
+      ))}
+    &lt;/<span class="tag">ul</span>&gt;
+  );
+}</code></pre>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <section class="reveal">
+      <h2>정리</h2>
+      <table class="comparison-table">
+        <thead>
+          <tr><th>규칙</th><th>설명</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>queryKey</code>는 배열로 선언</td><td>계층 구조를 표현하고, 내용이 바뀌면 새 요청이 발생합니다</td></tr>
+          <tr><td>모든 의존성을 <code>queryKey</code>에 포함</td><td>누락하면 캐시 무효화가 되지 않아 오래된 데이터가 표시됩니다</td></tr>
+          <tr><td><code>fetch</code> 응답 상태 확인</td><td>4xx/5xx 시 직접 throw해야 <code>isError</code>가 작동합니다</td></tr>
+          <tr><td><code>staleTime</code> 설정</td><td>자주 바뀌지 않는 데이터의 불필요한 재요청을 방지합니다</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <hr class="reveal" />
+
+    <section class="reveal">
+      <h2>추가 학습 자료 공유합니다.</h2>
+      <ul class="resource-list">
+        <li><a href="https://tanstack.com/query/latest/docs/framework/react/guides/query-keys" target="_blank" rel="noopener noreferrer">TanStack Query 공식 문서 — Query Keys</a></li>
+        <li><a href="https://tanstack.com/query/latest/docs/framework/react/guides/query-functions" target="_blank" rel="noopener noreferrer">TanStack Query 공식 문서 — Query Functions</a></li>
+      </ul>
+    </section>
+
+    <!-- 시리즈 네비게이션 -->
+    <div class="series-nav reveal">
+      <h3>TanStack Query 시리즈</h3>
+      <div class="series-nav-item current">
+        <span class="nav-num">01</span>
+        <span class="nav-title">queryKey와 queryFn은 어떻게 동작하나요?</span>
+        <span class="nav-current-badge">현재</span>
+      </div>
+      <div class="series-nav-item">
+        <span class="nav-num">02</span>
+        <span class="nav-title">useMutation과 QueryClient 메서드는 어떻게 사용하나요?</span>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div class="footer-col"><h4>Contact</h4><p>kangmu238@gmail.com</p></div>
+        <div class="footer-col"><h4>Socials</h4><a href="https://github.com/wookminkang" target="_blank" rel="noopener noreferrer">GitHub</a></div>
+        <div class="footer-col"><h4>Etc</h4><a href="#">팀 소개</a><a href="#">서비스 피드백</a></div>
+      </div>
+      <hr class="footer-divider" />
+      <p class="footer-copyright">Copyright &copy; 2026 매일매일. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    const progressBar = document.getElementById('progress-bar');
+    window.addEventListener('scroll', () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      progressBar.style.width = (docHeight > 0 ? (scrollTop / docHeight) * 100 : 0) + '%';
+    });
+    const observer = new IntersectionObserver(
+      (entries) => { entries.forEach((entry) => { if (entry.isIntersecting) { entry.target.classList.add('visible'); observer.unobserve(entry.target); } }); },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+  </script>
+</body>
+</html>

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TanStack Query에서 useMutation과 QueryClient 메서드는 어떻게 사용하나요? — 매일매일</title>
+  <meta name="description" content="useMutation으로 서버 상태를 변경하고, onSuccess에서 invalidateQueries로 관련 쿼리를 무효화해야 화면이 갱신됩니다." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #fe6e00;
+      --primary-light: #fff3e8;
+      --bg: #ffffff;
+      --surface: #F9F9F9;
+      --text: #212121;
+      --text-secondary: #757575;
+      --border: #E0E0E0;
+      --code-bg: #1e1e1e;
+      --code-bad: #e05252;
+      --code-good: #4caf7d;
+      --footer-bg: #1A1A2E;
+      --max-width: 720px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 16px; line-height: 1.8; color: var(--text); background: var(--bg); }
+
+    #progress-bar { position: fixed; top: 0; left: 0; height: 3px; width: 0%; background: var(--primary); z-index: 1000; transition: width 0.1s linear; }
+
+    header { position: sticky; top: 0; background: var(--bg); border-bottom: 1px solid var(--border); z-index: 100; }
+    .header-inner { max-width: var(--max-width); margin: 0 auto; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-size: 18px; font-weight: 700; color: var(--text); text-decoration: none; }
+    .logo span { color: var(--primary); }
+    .series-badge { font-size: 12px; color: var(--text-secondary); background: var(--surface); border: 1px solid var(--border); padding: 3px 10px; border-radius: 20px; }
+
+    main { max-width: var(--max-width); margin: 0 auto; padding: 56px 24px 80px; }
+
+    .category-badge { display: inline-block; padding: 6px 14px 6px 12px; background: var(--primary-light); border-left: 4px solid var(--primary); color: var(--primary); font-size: 13px; font-weight: 600; border-radius: 0 4px 4px 0; margin-bottom: 20px; }
+
+    h1 { font-size: 28px; font-weight: 700; line-height: 1.3; letter-spacing: -0.5px; margin-bottom: 32px; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+    h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; line-height: 1.3; }
+    p { color: var(--text); margin-bottom: 16px; }
+    ul, ol { padding-left: 24px; margin-bottom: 16px; }
+    li { margin-bottom: 8px; line-height: 1.8; }
+
+    code { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--primary); background: var(--primary-light); padding: 2px 6px; border-radius: 4px; }
+
+    .code-block { margin: 20px 0; border-radius: 10px; overflow: hidden; }
+    .code-header { padding: 10px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+    .code-header::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .code-block.bad .code-header { background: #2a1a1a; color: var(--code-bad); border-bottom: 2px solid var(--code-bad); }
+    .code-block.bad .code-header::before { background: var(--code-bad); }
+    .code-block.good .code-header { background: #1a2a1e; color: var(--code-good); border-bottom: 2px solid var(--code-good); }
+    .code-block.good .code-header::before { background: var(--code-good); }
+
+    pre { background: var(--code-bg); padding: 20px; overflow-x: auto; margin: 0; }
+    pre code { font-family: 'JetBrains Mono', monospace; font-size: 14px; line-height: 1.6; color: #d4d4d4; background: none; padding: 0; border-radius: 0; }
+
+    .comment { color: #6a9955; }
+    .keyword { color: #569cd6; }
+    .string { color: #ce9178; }
+    .func { color: #dcdcaa; }
+    .type { color: #4ec9b0; }
+    .number { color: #b5cea8; }
+    .prop { color: #9cdcfe; }
+    .tag { color: #f28b54; }
+
+    .summary-box { background: var(--surface); border-left: 4px solid var(--primary); border-radius: 0 8px 8px 0; padding: 20px 24px; margin-bottom: 16px; }
+    .summary-box p { margin-bottom: 0; }
+
+    /* 뮤테이션 흐름 */
+    .flow-diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 24px 0; }
+    .flow-diagram h3 { font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+    .flow-steps { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .flow-step { background: #2a2a3e; color: #9cdcfe; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; padding: 8px 14px; border-radius: 6px; white-space: nowrap; }
+    .flow-arrow { color: var(--text-secondary); font-size: 14px; flex-shrink: 0; }
+    .flow-step.success { background: #1a2a1e; color: var(--code-good); }
+    .flow-step.error { background: #2a1a1a; color: var(--code-bad); }
+
+    /* 메서드 카드 */
+    .method-grid { display: grid; gap: 12px; margin: 24px 0; }
+    .method-card { background: var(--surface); border-radius: 8px; padding: 16px 18px; display: grid; grid-template-columns: auto 1fr; gap: 0 14px; align-items: start; }
+    .method-name { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 4px 10px; border-radius: 6px; white-space: nowrap; height: fit-content; margin-top: 2px; }
+    .method-body h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+    .method-body p { font-size: 13px; color: var(--text-secondary); margin-bottom: 0; line-height: 1.6; }
+
+    /* 비교 테이블 */
+    .comparison-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px; }
+    .comparison-table th { background: var(--surface); padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 2px solid var(--border); }
+    .comparison-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .comparison-table tr:last-child td { border-bottom: none; }
+
+    /* 시리즈 네비게이션 */
+    .series-nav { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-top: 40px; }
+    .series-nav h3 { font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+    .series-nav-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .series-nav-item:last-child { border-bottom: none; }
+    .series-nav-item.current .nav-title { color: var(--primary); font-weight: 600; }
+    .nav-num { font-size: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; margin-right: 12px; }
+    .nav-title { font-size: 14px; color: var(--text); }
+    .nav-current-badge { font-size: 11px; font-weight: 700; background: var(--primary); color: #fff; padding: 2px 8px; border-radius: 20px; flex-shrink: 0; }
+
+    .resource-list { list-style: none; padding: 0; }
+    .resource-list li { margin-bottom: 12px; }
+    .resource-list a { color: var(--primary); text-decoration: none; font-size: 15px; display: inline-flex; align-items: center; gap: 6px; }
+    .resource-list a::before { content: ''; display: inline-block; width: 6px; height: 6px; background: var(--primary); border-radius: 50%; flex-shrink: 0; }
+    .resource-list a:hover { text-decoration: underline; }
+
+    footer { background: var(--footer-bg); color: #ffffff; padding: 48px 24px 32px; }
+    .footer-inner { max-width: var(--max-width); margin: 0 auto; }
+    .footer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-bottom: 40px; }
+    .footer-col h4 { font-size: 13px; font-weight: 600; color: #9e9e9e; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+    .footer-col p, .footer-col a { font-size: 14px; color: #bdbdbd; text-decoration: none; display: block; margin-bottom: 6px; line-height: 1.7; }
+    .footer-col a:hover { color: #ffffff; }
+    .footer-divider { border: none; border-top: 1px solid #2e2e40; margin-bottom: 20px; }
+    .footer-copyright { font-size: 13px; color: #616161; text-align: center; }
+
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 640px) {
+      h1 { font-size: 22px; }
+      main { padding: 40px 20px 64px; }
+      .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+      .flow-steps { gap: 6px; }
+      .method-card { grid-template-columns: 1fr; gap: 8px; }
+      .comparison-table { font-size: 13px; }
+      .comparison-table th, .comparison-table td { padding: 10px 10px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="progress-bar"></div>
+
+  <header>
+    <div class="header-inner">
+      <a href="#" class="logo">매일<span>매일</span></a>
+      <span class="series-badge">TanStack Query 2 / 2</span>
+    </div>
+  </header>
+
+  <main>
+
+    <div class="category-badge reveal">프론트엔드에 관련한 질문이에요.</div>
+    <h1 class="reveal">TanStack Query에서 useMutation과 QueryClient 메서드는 어떻게 사용하나요?</h1>
+
+    <hr class="reveal" />
+
+    <section class="reveal">
+      <h2>핵심 요약</h2>
+      <div class="summary-box">
+        <p>
+          <code>useMutation</code>은 데이터를 생성·수정·삭제하는 비동기 작업을 처리합니다.
+          뮤테이션 성공 후 <code>invalidateQueries</code>로 관련 쿼리를 무효화해 최신 데이터를 다시 가져와야 합니다.
+          <code>setQueryData</code>로 서버 응답을 캐시에 직접 반영하면 불필요한 재요청을 줄일 수 있습니다.
+        </p>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <section class="reveal">
+      <h2>왜 이런 문제가 발생하나요?</h2>
+
+      <p>
+        <code>useMutation</code>은 서버에 요청을 보내지만, 캐시를 자동으로 갱신하지는 않습니다.
+        뮤테이션 성공 후 관련 쿼리를 명시적으로 무효화해야 화면이 업데이트됩니다.
+      </p>
+
+      <div class="flow-diagram">
+        <h3>뮤테이션 후 캐시 갱신 흐름</h3>
+        <div class="flow-steps">
+          <span class="flow-step">mutate() 호출</span>
+          <span class="flow-arrow">&#8594;</span>
+          <span class="flow-step">서버 요청</span>
+          <span class="flow-arrow">&#8594;</span>
+          <span class="flow-step success">onSuccess</span>
+          <span class="flow-arrow">&#8594;</span>
+          <span class="flow-step">invalidateQueries</span>
+          <span class="flow-arrow">&#8594;</span>
+          <span class="flow-step success">화면 갱신</span>
+        </div>
+      </div>
+
+      <div class="method-grid">
+        <div class="method-card">
+          <span class="method-name">invalidateQueries</span>
+          <div class="method-body">
+            <h3>캐시 무효화 후 재요청</h3>
+            <p>특정 queryKey의 캐시를 무효화합니다. 무효화된 쿼리는 컴포넌트가 마운트된 상태면 자동으로 재요청됩니다.</p>
+          </div>
+        </div>
+        <div class="method-card">
+          <span class="method-name">setQueryData</span>
+          <div class="method-body">
+            <h3>캐시 직접 수정</h3>
+            <p>서버 응답 데이터를 캐시에 바로 반영합니다. 재요청 없이 즉시 화면이 갱신됩니다. 낙관적 업데이트에도 활용합니다.</p>
+          </div>
+        </div>
+        <div class="method-card">
+          <span class="method-name">getQueryData</span>
+          <div class="method-body">
+            <h3>캐시 읽기</h3>
+            <p>현재 캐시에 저장된 데이터를 읽습니다. 낙관적 업데이트 시 롤백 데이터를 저장할 때 활용합니다.</p>
+          </div>
+        </div>
+        <div class="method-card">
+          <span class="method-name">enabled</span>
+          <div class="method-body">
+            <h3>쿼리 실행 조건 제어</h3>
+            <p><code>false</code>이면 쿼리가 자동 실행되지 않습니다. 종속 쿼리나 조건부 실행에 사용합니다.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <section class="reveal">
+      <h2>예시 코드 — 잘못된 사용</h2>
+
+      <div class="code-block bad">
+        <div class="code-header">Bad — 뮤테이션 후 캐시 무효화 없음, enabled 미적용</div>
+        <pre><code><span class="comment">// 포스트를 생성해도 목록이 갱신되지 않습니다.</span>
+<span class="keyword">function</span> <span class="func">CreatePost</span>() {
+  <span class="keyword">const</span> mutation = <span class="func">useMutation</span>({
+    mutationFn: (title: <span class="type">string</span>) => <span class="func">createPost</span>({ title }),
+    <span class="comment">// onSuccess 없음 — 성공 후 캐시가 그대로 남아 목록이 갱신되지 않습니다.</span>
+  });
+
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">button</span> <span class="prop">onClick</span>={() => mutation.<span class="func">mutate</span>(<span class="string">'새 포스트'</span>)}&gt;생성&lt;/<span class="tag">button</span>&gt;
+  );
+}
+
+<span class="comment">// userId가 undefined일 때도 쿼리가 실행됩니다.</span>
+<span class="comment">// undefined가 queryKey에 포함되어 불필요한 요청이 나갑니다.</span>
+<span class="keyword">function</span> <span class="func">useUserProfile</span>(userId: <span class="type">number</span> | <span class="keyword">undefined</span>) {
+  <span class="keyword">return</span> <span class="func">useQuery</span>({
+    queryKey: [<span class="string">'user'</span>, userId],
+    queryFn: () => <span class="func">fetchUser</span>(userId!), <span class="comment">// userId가 없으면 에러 발생</span>
+    <span class="comment">// enabled 옵션 없음</span>
+  });
+}</code></pre>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <section class="reveal">
+      <h2>올바른 사용법</h2>
+
+      <div class="code-block good">
+        <div class="code-header">Good — onSuccess에서 invalidateQueries로 목록 갱신</div>
+        <pre><code><span class="keyword">import</span> { useMutation, useQueryClient } <span class="keyword">from</span> <span class="string">'@tanstack/react-query'</span>;
+
+<span class="keyword">function</span> <span class="func">useCreatePost</span>() {
+  <span class="keyword">const</span> queryClient = <span class="func">useQueryClient</span>();
+
+  <span class="keyword">return</span> <span class="func">useMutation</span>({
+    mutationFn: (title: <span class="type">string</span>) => <span class="func">createPost</span>({ title }),
+    onSuccess: () => {
+      <span class="comment">// 'posts' 키를 포함한 모든 쿼리를 무효화합니다.</span>
+      <span class="comment">// 컴포넌트가 마운트되어 있으면 자동으로 재요청이 발생합니다.</span>
+      queryClient.<span class="func">invalidateQueries</span>({ queryKey: [<span class="string">'posts'</span>] });
+    },
+    onError: (error) => {
+      console.<span class="func">error</span>(<span class="string">'포스트 생성 실패:'</span>, error.message);
+    },
+  });
+}
+
+<span class="keyword">function</span> <span class="func">CreatePost</span>() {
+  <span class="keyword">const</span> { mutate, isPending, isError } = <span class="func">useCreatePost</span>();
+
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">div</span>&gt;
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={() => <span class="func">mutate</span>(<span class="string">'새 포스트'</span>)} <span class="prop">disabled</span>={isPending}&gt;
+        {isPending ? <span class="string">'생성 중...'</span> : <span class="string">'생성'</span>}
+      &lt;/<span class="tag">button</span>&gt;
+      {isError &amp;&amp; &lt;<span class="tag">p</span>&gt;생성에 실패했습니다. 다시 시도해주세요.&lt;/<span class="tag">p</span>&gt;}
+    &lt;/<span class="tag">div</span>&gt;
+  );
+}</code></pre>
+      </div>
+
+      <div class="code-block good">
+        <div class="code-header">Good — setQueryData로 서버 응답을 캐시에 직접 반영</div>
+        <pre><code><span class="keyword">function</span> <span class="func">useUpdatePost</span>() {
+  <span class="keyword">const</span> queryClient = <span class="func">useQueryClient</span>();
+
+  <span class="keyword">return</span> <span class="func">useMutation</span>({
+    mutationFn: ({ id, title }: { <span class="prop">id</span>: <span class="type">number</span>; <span class="prop">title</span>: <span class="type">string</span> }) =>
+      <span class="func">updatePost</span>({ id, title }),
+    onSuccess: (updatedPost) => {
+      <span class="comment">// 서버 응답으로 단건 캐시를 직접 업데이트합니다. 재요청이 발생하지 않습니다.</span>
+      queryClient.<span class="func">setQueryData</span>([<span class="string">'posts'</span>, updatedPost.id], updatedPost);
+      <span class="comment">// 목록 캐시는 무효화해 재요청합니다.</span>
+      queryClient.<span class="func">invalidateQueries</span>({ queryKey: [<span class="string">'posts'</span>] });
+    },
+  });
+}</code></pre>
+      </div>
+
+      <div class="code-block good">
+        <div class="code-header">Good — enabled로 종속 쿼리 제어</div>
+        <pre><code><span class="comment">// userId가 준비된 후에만 쿼리를 실행합니다.</span>
+<span class="keyword">function</span> <span class="func">useUserProfile</span>(userId: <span class="type">number</span> | <span class="keyword">undefined</span>) {
+  <span class="keyword">return</span> <span class="func">useQuery</span>({
+    queryKey: [<span class="string">'user'</span>, userId],
+    queryFn: () => <span class="func">fetchUser</span>(userId!),
+    enabled: !!userId, <span class="comment">// userId가 있을 때만 실행</span>
+  });
+}
+
+<span class="comment">// 첫 번째 쿼리 결과를 두 번째 쿼리의 파라미터로 사용하는 종속 쿼리</span>
+<span class="keyword">function</span> <span class="func">UserPosts</span>() {
+  <span class="keyword">const</span> { data: user } = <span class="func">useQuery</span>({
+    queryKey: [<span class="string">'me'</span>],
+    queryFn: fetchCurrentUser,
+  });
+
+  <span class="keyword">const</span> { data: posts } = <span class="func">useQuery</span>({
+    queryKey: [<span class="string">'posts'</span>, <span class="string">'user'</span>, user?.id],
+    queryFn: () => <span class="func">fetchPostsByUser</span>(user!.id),
+    enabled: !!user?.id, <span class="comment">// user가 로딩될 때까지 실행하지 않습니다.</span>
+  });
+
+  <span class="keyword">return</span> &lt;<span class="tag">div</span>&gt;{<span class="comment">/* ... */</span>}&lt;/<span class="tag">div</span>&gt;;
+}</code></pre>
+      </div>
+
+      <div class="code-block good">
+        <div class="code-header">Good — staleTime / gcTime 설정</div>
+        <pre><code><span class="keyword">function</span> <span class="func">usePostDetail</span>(id: <span class="type">number</span>) {
+  <span class="keyword">return</span> <span class="func">useQuery</span>({
+    queryKey: [<span class="string">'posts'</span>, id],
+    queryFn: () => <span class="func">fetchPost</span>(id),
+    <span class="comment">// staleTime: 10분간 데이터를 신선하다고 판단합니다. 재요청이 발생하지 않습니다.</span>
+    staleTime: <span class="number">1000</span> * <span class="number">60</span> * <span class="number">10</span>,
+    <span class="comment">// gcTime: 캐시를 30분간 메모리에 유지합니다. 이후 삭제됩니다.</span>
+    gcTime: <span class="number">1000</span> * <span class="number">60</span> * <span class="number">30</span>,
+  });
+}</code></pre>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <section class="reveal">
+      <h2>정리</h2>
+      <table class="comparison-table">
+        <thead>
+          <tr><th>메서드 / 옵션</th><th>역할</th><th>사용 시점</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>useMutation</code></td><td>서버 상태 변경</td><td>POST, PUT, PATCH, DELETE 요청</td></tr>
+          <tr><td><code>invalidateQueries</code></td><td>캐시 무효화 후 재요청</td><td>뮤테이션 성공 후 관련 목록 갱신</td></tr>
+          <tr><td><code>setQueryData</code></td><td>캐시 직접 수정</td><td>서버 응답으로 즉시 반영, 재요청 절감</td></tr>
+          <tr><td><code>getQueryData</code></td><td>캐시 읽기</td><td>낙관적 업데이트의 롤백 데이터 보관</td></tr>
+          <tr><td><code>enabled</code></td><td>쿼리 실행 여부 제어</td><td>종속 쿼리, 조건부 실행</td></tr>
+          <tr><td><code>staleTime</code></td><td>캐시 신선도 유지 시간</td><td>자주 바뀌지 않는 데이터의 재요청 방지</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <hr class="reveal" />
+
+    <section class="reveal">
+      <h2>추가 학습 자료 공유합니다.</h2>
+      <ul class="resource-list">
+        <li><a href="https://tanstack.com/query/latest/docs/framework/react/guides/mutations" target="_blank" rel="noopener noreferrer">TanStack Query 공식 문서 — Mutations</a></li>
+        <li><a href="https://tanstack.com/query/latest/docs/framework/react/guides/invalidations-from-mutations" target="_blank" rel="noopener noreferrer">TanStack Query 공식 문서 — Invalidations from Mutations</a></li>
+      </ul>
+    </section>
+
+    <!-- 시리즈 네비게이션 -->
+    <div class="series-nav reveal">
+      <h3>TanStack Query 시리즈</h3>
+      <div class="series-nav-item">
+        <span class="nav-num">01</span>
+        <span class="nav-title">queryKey와 queryFn은 어떻게 동작하나요?</span>
+      </div>
+      <div class="series-nav-item current">
+        <span class="nav-num">02</span>
+        <span class="nav-title">useMutation과 QueryClient 메서드는 어떻게 사용하나요?</span>
+        <span class="nav-current-badge">현재</span>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div class="footer-col"><h4>Contact</h4><p>kangmu238@gmail.com</p></div>
+        <div class="footer-col"><h4>Socials</h4><a href="https://github.com/wookminkang" target="_blank" rel="noopener noreferrer">GitHub</a></div>
+        <div class="footer-col"><h4>Etc</h4><a href="#">팀 소개</a><a href="#">서비스 피드백</a></div>
+      </div>
+      <hr class="footer-divider" />
+      <p class="footer-copyright">Copyright &copy; 2026 매일매일. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    const progressBar = document.getElementById('progress-bar');
+    window.addEventListener('scroll', () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      progressBar.style.width = (docHeight > 0 ? (scrollTop / docHeight) * 100 : 0) + '%';
+    });
+    const observer = new IntersectionObserver(
+      (entries) => { entries.forEach((entry) => { if (entry.isIntersecting) { entry.target.classList.add('visible'); observer.unobserve(entry.target); } }); },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+  </script>
+</body>
+</html>

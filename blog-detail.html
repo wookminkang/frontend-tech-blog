@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>왜 React에서 배열의 index를 key로 사용하면 안 되나요? | 매일매일</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+
+  <style>
+    :root {
+      --primary:        #fe6e00;
+      --primary-dim:    rgba(254, 110, 0, 0.10);
+      --primary-hover:  #e56200;
+      --bg:             #ffffff;
+      --text:           #212121;
+      --text-sub:       #757575;
+      --card:           #F9F9F9;
+      --code-bg:        #F5F5F5;
+      --border:         #E8E8E8;
+      --max:            720px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Pretendard', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.8;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── PROGRESS BAR ── */
+    #progress {
+      position: fixed; top: 0; left: 0;
+      height: 3px; width: 0%;
+      background: var(--primary);
+      z-index: 300;
+      transition: width 0.08s linear;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: sticky; top: 0; z-index: 200;
+      background: rgba(255,255,255,0.96);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+    .header-inner {
+      max-width: 1080px; margin: 0 auto;
+      padding: 0 28px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 9px;
+      text-decoration: none; font-weight: 800;
+      font-size: 17px; color: var(--text); letter-spacing: -0.4px;
+    }
+    .logo-mark {
+      width: 30px; height: 30px;
+      background: var(--primary); border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-mark svg { width: 17px; height: 17px; fill: #fff; }
+    nav { display: flex; gap: 28px; }
+    nav a {
+      font-size: 14px; font-weight: 500;
+      color: var(--text-sub); text-decoration: none;
+      transition: color 0.18s;
+    }
+    nav a:hover, nav a.on { color: var(--text); }
+    nav a.on { font-weight: 700; }
+
+    /* ── ARTICLE CONTAINER ── */
+    .wrap {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 64px 24px 96px;
+    }
+
+    /* ── CATEGORY BADGE ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 5px 13px 5px 10px;
+      background: var(--primary-dim);
+      border-left: 3px solid var(--primary);
+      border-radius: 0 6px 6px 0;
+      font-size: 12.5px; font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 22px;
+      opacity: 0; animation: rise 0.5s 0.05s ease forwards;
+    }
+
+    /* ── TITLE ── */
+    h1 {
+      font-size: clamp(26px, 4.5vw, 38px);
+      font-weight: 800;
+      line-height: 1.28;
+      letter-spacing: -1px;
+      color: var(--text);
+      margin-bottom: 28px;
+      opacity: 0; animation: rise 0.5s 0.12s ease forwards;
+    }
+
+    /* ── META ── */
+    .meta {
+      display: flex; align-items: center; gap: 14px;
+      font-size: 13px; color: var(--text-sub);
+      padding-bottom: 28px;
+      border-bottom: 2px solid var(--text);
+      margin-bottom: 44px;
+      opacity: 0; animation: rise 0.5s 0.18s ease forwards;
+    }
+    .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text-sub); }
+
+    /* ── SUMMARY ── */
+    .summary {
+      background: var(--card);
+      border-top: 3px solid var(--primary);
+      border-radius: 0 0 10px 10px;
+      padding: 22px 26px;
+      font-size: 15.5px; line-height: 1.82;
+      margin-bottom: 52px;
+      opacity: 0; animation: rise 0.5s 0.24s ease forwards;
+    }
+    .summary code { color: #b84800; }
+
+    /* ── SECTION ── */
+    .sec { margin-bottom: 48px; }
+
+    .sec-label {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 10.5px; font-weight: 800;
+      letter-spacing: 1.8px; text-transform: uppercase;
+      color: var(--primary); margin-bottom: 18px;
+    }
+    .sec-label::after {
+      content: ''; flex: 1; height: 1px; background: var(--primary-dim);
+    }
+
+    .sec p {
+      font-size: 15.5px; line-height: 1.85;
+      color: var(--text); margin-bottom: 14px;
+    }
+    .sec p:last-child { margin-bottom: 0; }
+
+    .sec ul { list-style: none; padding: 0; margin-top: 6px; }
+    .sec ul li {
+      font-size: 15px; line-height: 1.7;
+      padding: 5px 0 5px 20px;
+      position: relative;
+    }
+    .sec ul li::before {
+      content: '';
+      position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+      width: 6px; height: 6px;
+      border-radius: 50%; background: var(--primary);
+    }
+
+    /* inline code */
+    code:not(pre code) {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      background: var(--primary-dim);
+      color: #b84800;
+      padding: 2px 6px; border-radius: 4px;
+    }
+
+    /* ── CODE BLOCK ── */
+    .codeblock { margin: 20px 0; border-radius: 10px; overflow: hidden; box-shadow: 0 3px 18px rgba(0,0,0,0.09); }
+
+    .cblock-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; background: #1c1c1c;
+    }
+    .cblock-head.bad  { background: #271313; border-bottom: 2px solid #e05252; }
+    .cblock-head.good { background: #112218; border-bottom: 2px solid #4caf7d; }
+    .cblock-head.note { background: #1c1c1c; border-bottom: 1px solid #2e2e2e; }
+
+    .clabel {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase;
+    }
+    .clabel.bad  { color: #e05252; }
+    .clabel.good { color: #4caf7d; }
+    .clabel.note { color: #666; }
+    .clang { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #4a4a4a; }
+
+    pre {
+      background: #181818; padding: 20px 22px;
+      overflow-x: auto; margin: 0;
+    }
+    pre.bad  { background: #1c0d0d; }
+    pre.good { background: #0c1a11; }
+
+    pre code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; line-height: 1.72;
+      color: #d4d4d4;
+      background: none; padding: 0;
+    }
+
+    /* syntax */
+    .kw  { color: #c792ea; }
+    .fn  { color: #82aaff; }
+    .str { color: #c3e88d; }
+    .cm  { color: #4a5568; font-style: italic; }
+    .op  { color: #89ddff; }
+    .tag { color: #f07178; }
+    .att { color: #ffcb6b; }
+    .pun { color: #89ddff; }
+
+    .cexplain {
+      border-left: 3px solid var(--border);
+      background: var(--card);
+      border-radius: 0 0 8px 8px;
+      padding: 13px 16px;
+      font-size: 13.5px; color: var(--text-sub); line-height: 1.72;
+    }
+    .cexplain.bad  { border-color: #e05252; }
+    .cexplain.good { border-color: #4caf7d; }
+
+    /* ── CONCLUSION ── */
+    .conclusion {
+      background: var(--text);
+      border-radius: 12px;
+      padding: 32px 36px;
+      margin: 52px 0;
+    }
+    .conclusion .sec-label { color: var(--primary); }
+    .conclusion .sec-label::after { background: rgba(254,110,0,0.25); }
+    .conclusion p {
+      color: rgba(255,255,255,0.84);
+      font-size: 15.5px; line-height: 1.85;
+      margin-bottom: 14px;
+    }
+    .conclusion p:last-child { margin-bottom: 0; }
+    .hl { color: var(--primary); font-weight: 800; }
+
+    /* ── RESOURCES ── */
+    .resources { margin-bottom: 52px; }
+    .res-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+    .res-list li a {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 18px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      text-decoration: none; color: var(--text);
+      font-size: 14px; font-weight: 500;
+      transition: all 0.18s;
+    }
+    .res-list li a:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      transform: translateX(5px);
+    }
+    .res-list li a::before {
+      content: ''; width: 6px; height: 6px;
+      border-radius: 50%; background: var(--primary); flex-shrink: 0;
+    }
+    .res-arrow { margin-left: auto; color: var(--text-sub); transition: transform 0.18s; }
+    .res-list li a:hover .res-arrow { transform: translateX(3px); color: var(--primary); }
+
+    /* ── ACTIONS ── */
+    .actions {
+      display: flex; align-items: center; gap: 12px;
+      padding: 28px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 22px; border-radius: 20px;
+      font-family: 'Pretendard', sans-serif;
+      font-size: 13.5px; font-weight: 700;
+      cursor: pointer; border: none;
+      transition: all 0.18s; text-decoration: none;
+    }
+    .btn svg { width: 15px; height: 15px; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 5px 14px rgba(254,110,0,0.28); }
+    .btn-ghost { background: var(--card); color: var(--text); border: 1.5px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--text); transform: translateY(-1px); }
+
+    /* ── FOOTER ── */
+    footer {
+      background: #111;
+      color: rgba(255,255,255,0.6);
+      padding: 52px 28px 32px;
+      margin-top: 80px;
+    }
+    .footer-in { max-width: 1080px; margin: 0 auto; }
+    .footer-top {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding-bottom: 36px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 24px;
+    }
+    .f-logo {
+      display: flex; align-items: center; gap: 8px;
+      color: #fff; font-weight: 800; font-size: 16px;
+    }
+    .f-logo-mark { width: 24px; height: 24px; background: var(--primary); border-radius: 5px; }
+    .footer-cols { display: flex; gap: 56px; }
+    .footer-col h4 {
+      font-size: 11px; font-weight: 800;
+      letter-spacing: 1.2px; text-transform: uppercase;
+      color: #fff; margin-bottom: 14px;
+    }
+    .footer-col ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+    .footer-col ul li a {
+      font-size: 13px; color: rgba(255,255,255,0.45);
+      text-decoration: none; transition: color 0.18s;
+    }
+    .footer-col ul li a:hover { color: var(--primary); }
+    .footer-btm { font-size: 12px; color: rgba(255,255,255,0.25); }
+
+    /* ── ANIMATION ── */
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.5s ease, transform 0.5s ease; }
+    .reveal.show { opacity: 1; transform: translateY(0); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      .wrap { padding: 40px 18px 72px; }
+      .footer-top { flex-direction: column; gap: 28px; }
+      .footer-cols { gap: 28px; }
+      nav { gap: 18px; }
+      .conclusion { padding: 24px 22px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<!-- HEADER -->
+<header>
+  <div class="header-inner">
+    <a href="#" class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+      </div>
+      매일매일
+    </a>
+    <nav>
+      <a href="#">홈</a>
+      <a href="#" class="on">아티클</a>
+      <a href="#">블로그</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ARTICLE -->
+<main class="wrap">
+
+  <div class="badge">프론트엔드에 관련한 질문이에요.</div>
+
+  <h1>왜 React에서 배열의 index를<br>key로 사용하면 안 되나요?</h1>
+
+  <div class="meta">
+    <span>2026년 4월 14일</span>
+    <span class="dot"></span>
+    <span>3분 읽기</span>
+    <span class="dot"></span>
+    <span>React, key, 리스트 렌더링</span>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary reveal">
+    React는 <code>key</code>를 기준으로 이전 렌더링과 현재 렌더링의 컴포넌트를 비교합니다.
+    배열의 <code>index</code>를 key로 사용하면 리스트 순서가 바뀔 때 React가 잘못된 컴포넌트를 재사용해
+    예상치 못한 버그가 발생합니다.
+  </div>
+
+  <!-- WHY -->
+  <div class="sec reveal">
+    <div class="sec-label">왜 이런 문제가 발생하나요?</div>
+    <p>
+      React는 리스트를 렌더링할 때 각 아이템을 <code>key</code> 값으로 추적합니다.
+      key가 동일하면 React는 "같은 컴포넌트"라고 판단하고 DOM을 재사용합니다.
+    </p>
+    <p>
+      <code>index</code>를 key로 사용하면 아이템을 추가하거나 삭제하거나 순서를 변경할 때,
+      실제로는 다른 아이템인데 key가 같아져 React가 잘못된 컴포넌트를 재사용하게 됩니다.
+    </p>
+    <p>이로 인해 발생하는 문제입니다.</p>
+    <ul>
+      <li>입력창(input)의 값이 의도치 않은 아이템에 남아있음</li>
+      <li>애니메이션이 잘못된 아이템에 적용됨</li>
+      <li>체크박스 상태가 뒤바뀜</li>
+      <li>불필요한 리렌더링으로 성능 저하</li>
+    </ul>
+  </div>
+
+  <!-- BAD CODE -->
+  <div class="sec reveal">
+    <div class="sec-label">잘못된 사용 (Bad Example)</div>
+    <div class="codeblock">
+      <div class="cblock-head bad">
+        <span class="clabel bad">Bad</span>
+        <span class="clang">tsx</span>
+      </div>
+      <pre class="bad"><code><span class="kw">const</span> <span class="fn">TodoList</span> <span class="op">=</span> <span class="pun">({</span> todos <span class="pun">}:</span> <span class="pun">{</span> todos<span class="op">:</span> Todo<span class="pun">[]</span> <span class="pun">})</span> <span class="op">=&gt;</span> <span class="pun">{</span>
+  <span class="kw">return</span> <span class="pun">(</span>
+    <span class="tag">&lt;ul&gt;</span>
+      <span class="pun">{</span>todos<span class="op">.</span><span class="fn">map</span><span class="pun">((</span>todo<span class="pun">,</span> index<span class="pun">)</span> <span class="op">=&gt;</span> <span class="pun">(</span>
+        <span class="tag">&lt;TodoItem</span> <span class="att">key</span><span class="op">={</span>index<span class="op">}</span> <span class="att">todo</span><span class="op">={</span>todo<span class="op">}</span> <span class="tag">/&gt;</span>  <span class="cm">// index를 key로 사용</span>
+      <span class="pun">))}</span>
+    <span class="tag">&lt;/ul&gt;</span>
+  <span class="pun">);</span>
+<span class="pun">};</span></code></pre>
+    </div>
+    <div class="cexplain bad">
+      todos 배열 맨 앞에 새 아이템을 추가하면 기존 아이템들의 index가 모두 1씩 밀립니다.
+      React는 key=0인 컴포넌트가 여전히 존재한다고 판단해 첫 번째 TodoItem을 재사용합니다.
+      결과적으로 로컬 상태(input 값, 체크박스)가 엉뚱한 아이템에 붙게 됩니다.
+    </div>
+  </div>
+
+  <!-- GOOD CODE -->
+  <div class="sec reveal">
+    <div class="sec-label">올바른 사용법 (Good Example)</div>
+    <div class="codeblock">
+      <div class="cblock-head good">
+        <span class="clabel good">Good</span>
+        <span class="clang">tsx</span>
+      </div>
+      <pre class="good"><code><span class="kw">const</span> <span class="fn">TodoList</span> <span class="op">=</span> <span class="pun">({</span> todos <span class="pun">}:</span> <span class="pun">{</span> todos<span class="op">:</span> Todo<span class="pun">[]</span> <span class="pun">})</span> <span class="op">=&gt;</span> <span class="pun">{</span>
+  <span class="kw">return</span> <span class="pun">(</span>
+    <span class="tag">&lt;ul&gt;</span>
+      <span class="pun">{</span>todos<span class="op">.</span><span class="fn">map</span><span class="pun">((</span>todo<span class="pun">)</span> <span class="op">=&gt;</span> <span class="pun">(</span>
+        <span class="tag">&lt;TodoItem</span> <span class="att">key</span><span class="op">={</span>todo<span class="op">.</span>id<span class="op">}</span> <span class="att">todo</span><span class="op">={</span>todo<span class="op">}</span> <span class="tag">/&gt;</span>  <span class="cm">// 고유 id 사용</span>
+      <span class="pun">))}</span>
+    <span class="tag">&lt;/ul&gt;</span>
+  <span class="pun">);</span>
+<span class="pun">};</span></code></pre>
+    </div>
+    <div class="cexplain good">
+      각 아이템의 고유한 id를 key로 사용하면 배열 순서가 바뀌어도 React가 올바른 컴포넌트를 추적합니다.
+    </div>
+
+    <div style="margin-top: 18px;">
+      <div class="codeblock">
+        <div class="cblock-head note">
+          <span class="clabel note">고유 id가 없을 때</span>
+          <span class="clang">tsx</span>
+        </div>
+        <pre><code><span class="cm">// 데이터 생성 시점에 id 부여 (렌더링 중 생성 금지)</span>
+<span class="kw">const</span> newTodo <span class="op">=</span> <span class="pun">{</span>
+  id<span class="op">:</span> crypto<span class="op">.</span><span class="fn">randomUUID</span><span class="pun">(),</span>
+  text<span class="op">:</span> <span class="str">'새 할일'</span><span class="pun">,</span>
+  done<span class="op">:</span> <span class="kw">false</span><span class="pun">,</span>
+<span class="pun">};</span></code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONCLUSION -->
+  <div class="conclusion reveal">
+    <div class="sec-label">정리</div>
+    <p>
+      <span class="hl">key</span>는 React가 리스트 아이템을 구별하는 유일한 기준입니다.
+      index는 배열 순서가 바뀌거나 아이템이 추가·삭제될 때마다 바뀌기 때문에 key로 적합하지 않습니다.
+    </p>
+    <p>
+      반드시 각 아이템의 <span class="hl">고유한 id</span>를 key로 사용하세요.
+      리스트가 정적이고 순서가 절대 바뀌지 않는 경우에만 index가 허용됩니다.
+    </p>
+  </div>
+
+  <!-- RESOURCES -->
+  <div class="resources reveal">
+    <div class="sec-label">추가 학습 자료 공유합니다.</div>
+    <ul class="res-list">
+      <li>
+        <a href="https://ko.react.dev/learn/rendering-lists#keeping-list-items-in-order-with-key" target="_blank">
+          [React 공식 문서] 리스트와 key
+          <span class="res-arrow">→</span>
+        </a>
+      </li>
+      <li>
+        <a href="https://robinwieruch.de/react-list-key" target="_blank">
+          [Robin Wieruch] Index as a key is an anti-pattern
+          <span class="res-arrow">→</span>
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="actions reveal">
+    <button class="btn btn-ghost">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
+        <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+      </svg>
+      콘텐츠 피드백
+    </button>
+    <button class="btn btn-primary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      </svg>
+      공유하기
+    </button>
+  </div>
+
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-in">
+    <div class="footer-top">
+      <div class="f-logo">
+        <div class="f-logo-mark"></div>
+        매일매일
+      </div>
+      <div class="footer-cols">
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <ul><li><a href="mailto:team.maeilmail@gmail.com">team.maeilmail@gmail.com</a></li></ul>
+        </div>
+        <div class="footer-col">
+          <h4>Socials</h4>
+          <ul>
+            <li><a href="#">Velog</a></li>
+            <li><a href="#">Github</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Etc</h4>
+          <ul>
+            <li><a href="#">팀 소개</a></li>
+            <li><a href="#">서비스 피드백</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer-btm">Copyright &copy; 2026 매일매일. All rights reserved.</div>
+  </div>
+</footer>
+
+<script>
+  // Progress bar
+  const bar = document.getElementById('progress');
+  window.addEventListener('scroll', () => {
+    const pct = window.scrollY / (document.documentElement.scrollHeight - window.innerHeight) * 100;
+    bar.style.width = Math.min(pct, 100) + '%';
+  });
+
+  // Scroll reveal
+  const revealEls = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('show'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.08 });
+  revealEls.forEach(el => io.observe(el));
+</script>
+</body>
+</html>

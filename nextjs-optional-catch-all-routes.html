@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Next.js에서 [[...slug]]는 [...slug]와 어떻게 다른가요? — 매일매일</title>
+  <meta name="description" content="[...slug]는 하위 경로만 매칭하고, [[...slug]]는 루트 경로까지 포함해 매칭합니다. 차이점과 올바른 사용법을 알아봅니다." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #fe6e00;
+      --primary-light: #fff3e8;
+      --bg: #ffffff;
+      --surface: #F9F9F9;
+      --text: #212121;
+      --text-secondary: #757575;
+      --border: #E0E0E0;
+      --code-bg: #1e1e1e;
+      --code-bad: #e05252;
+      --code-good: #4caf7d;
+      --footer-bg: #1A1A2E;
+      --max-width: 720px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 16px;
+      line-height: 1.8;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    #progress-bar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px; width: 0%;
+      background: var(--primary);
+      z-index: 1000;
+      transition: width 0.1s linear;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .header-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+    }
+
+    .logo { font-size: 18px; font-weight: 700; color: var(--text); text-decoration: none; }
+    .logo span { color: var(--primary); }
+
+    main {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 56px 24px 80px;
+    }
+
+    .category-badge {
+      display: inline-block;
+      padding: 6px 14px 6px 12px;
+      background: var(--primary-light);
+      border-left: 4px solid var(--primary);
+      color: var(--primary);
+      font-size: 13px; font-weight: 600;
+      border-radius: 0 4px 4px 0;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 28px; font-weight: 700;
+      line-height: 1.3; letter-spacing: -0.5px;
+      margin-bottom: 32px;
+    }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+    h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; line-height: 1.3; }
+
+    p { color: var(--text); margin-bottom: 16px; }
+
+    ul, ol { padding-left: 24px; margin-bottom: 16px; }
+    li { margin-bottom: 8px; line-height: 1.8; }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* 코드 블록 */
+    .code-block { margin: 20px 0; border-radius: 10px; overflow: hidden; }
+
+    .code-header {
+      padding: 10px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; font-weight: 500;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .code-header::before {
+      content: '';
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%; flex-shrink: 0;
+    }
+
+    .code-block.bad .code-header {
+      background: #2a1a1a; color: var(--code-bad);
+      border-bottom: 2px solid var(--code-bad);
+    }
+    .code-block.bad .code-header::before { background: var(--code-bad); }
+
+    .code-block.good .code-header {
+      background: #1a2a1e; color: var(--code-good);
+      border-bottom: 2px solid var(--code-good);
+    }
+    .code-block.good .code-header::before { background: var(--code-good); }
+
+    .code-block.neutral .code-header {
+      background: #1e1e2e; color: #9cdcfe;
+      border-bottom: 2px solid #3a3a5e;
+    }
+    .code-block.neutral .code-header::before { background: #9cdcfe; }
+
+    pre { background: var(--code-bg); padding: 20px; overflow-x: auto; margin: 0; }
+
+    pre code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; line-height: 1.6;
+      color: #d4d4d4; background: none;
+      padding: 0; border-radius: 0;
+    }
+
+    .comment { color: #6a9955; }
+    .keyword { color: #569cd6; }
+    .string { color: #ce9178; }
+    .func { color: #dcdcaa; }
+    .type { color: #4ec9b0; }
+    .number { color: #b5cea8; }
+    .prop { color: #9cdcfe; }
+    .tag { color: #f28b54; }
+    .match-yes { color: #4caf7d; }
+    .match-no { color: #e05252; }
+
+    /* 요약 박스 */
+    .summary-box {
+      background: var(--surface);
+      border-left: 4px solid var(--primary);
+      border-radius: 0 8px 8px 0;
+      padding: 20px 24px; margin-bottom: 16px;
+    }
+    .summary-box p { margin-bottom: 0; }
+
+    /* 매칭 비교 카드 */
+    .match-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 24px 0;
+    }
+
+    .match-card {
+      background: var(--surface);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .match-card-header {
+      padding: 12px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; font-weight: 700;
+      background: #2a2a3e; color: #9cdcfe;
+    }
+
+    .match-card-body { padding: 16px; }
+
+    .match-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .match-row:last-child { border-bottom: none; }
+
+    .match-path { color: var(--text-secondary); }
+
+    .match-ok {
+      font-size: 11px; font-weight: 700;
+      padding: 2px 8px; border-radius: 20px;
+      background: #e8f5e9; color: #2e7d32;
+      font-family: 'Pretendard', sans-serif;
+    }
+
+    .match-fail {
+      font-size: 11px; font-weight: 700;
+      padding: 2px 8px; border-radius: 20px;
+      background: #fce4ec; color: #c62828;
+      font-family: 'Pretendard', sans-serif;
+    }
+
+    /* 비교 테이블 */
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 24px 0;
+      font-size: 14px;
+    }
+
+    .comparison-table th {
+      background: var(--surface);
+      padding: 12px 16px;
+      text-align: left; font-weight: 600;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .comparison-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .comparison-table tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .badge-catch { background: #e3f2fd; color: #1565c0; }
+    .badge-optional { background: #fff3e8; color: #e65100; }
+    .badge-yes { background: #e8f5e9; color: #2e7d32; font-family: 'Pretendard', sans-serif; }
+    .badge-no { background: #fce4ec; color: #c62828; font-family: 'Pretendard', sans-serif; }
+
+    /* 추가 학습 자료 */
+    .resource-list { list-style: none; padding: 0; }
+    .resource-list li { margin-bottom: 12px; }
+    .resource-list a {
+      color: var(--primary);
+      text-decoration: none; font-size: 15px;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .resource-list a::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: var(--primary);
+      border-radius: 50%; flex-shrink: 0;
+    }
+    .resource-list a:hover { text-decoration: underline; }
+
+    /* 푸터 */
+    footer { background: var(--footer-bg); color: #ffffff; padding: 48px 24px 32px; }
+
+    .footer-inner { max-width: var(--max-width); margin: 0 auto; }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px; margin-bottom: 40px;
+    }
+
+    .footer-col h4 {
+      font-size: 13px; font-weight: 600;
+      color: #9e9e9e; text-transform: uppercase;
+      letter-spacing: 0.8px; margin-bottom: 12px;
+    }
+
+    .footer-col p,
+    .footer-col a {
+      font-size: 14px; color: #bdbdbd;
+      text-decoration: none; display: block;
+      margin-bottom: 6px; line-height: 1.7;
+    }
+
+    .footer-col a:hover { color: #ffffff; }
+
+    .footer-divider { border: none; border-top: 1px solid #2e2e40; margin-bottom: 20px; }
+
+    .footer-copyright { font-size: 13px; color: #616161; text-align: center; }
+
+    /* reveal */
+    .reveal {
+      opacity: 0; transform: translateY(20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* 반응형 */
+    @media (max-width: 640px) {
+      h1 { font-size: 22px; }
+      main { padding: 40px 20px 64px; }
+      .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+      .match-grid { grid-template-columns: 1fr; }
+      .comparison-table { font-size: 13px; }
+      .comparison-table th,
+      .comparison-table td { padding: 10px 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="progress-bar"></div>
+
+  <header>
+    <div class="header-inner">
+      <a href="#" class="logo">매일<span>매일</span></a>
+    </div>
+  </header>
+
+  <main>
+
+    <div class="category-badge reveal">프론트엔드에 관련한 질문이에요.</div>
+
+    <h1 class="reveal">Next.js에서 [[...slug]]는 [...slug]와 어떻게 다른가요?</h1>
+
+    <hr class="reveal" />
+
+    <!-- 핵심 요약 -->
+    <section class="reveal">
+      <h2>핵심 요약</h2>
+      <div class="summary-box">
+        <p>
+          <code>[...slug]</code>는 하나 이상의 경로 세그먼트를 배열로 받는 캐치올 라우트이고,
+          <code>[[...slug]]</code>는 세그먼트가 없는 경우(루트 경로)까지 포함하는 선택적 캐치올 라우트입니다.
+          <code>[...slug]</code>는 <code>/docs/a</code>처럼 하위 경로에만 매칭되고,
+          <code>[[...slug]]</code>는 <code>/docs</code> 자체에도 매칭됩니다.
+        </p>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 왜 -->
+    <section class="reveal">
+      <h2>왜 이런 문제가 발생하나요?</h2>
+
+      <p>
+        깊이가 가변적인 URL 구조를 처리할 때 파일을 여러 개 만들거나,
+        <code>[...slug]</code>와 루트 경로용 <code>page.tsx</code>를 분리해 관리하면
+        라우트가 중복되거나 유지보수가 어려워집니다.
+      </p>
+
+      <p>두 문법의 매칭 범위를 비교해보면 차이가 명확합니다.</p>
+
+      <div class="match-grid">
+        <div class="match-card">
+          <div class="match-card-header">[...slug]</div>
+          <div class="match-card-body">
+            <div class="match-row">
+              <span class="match-path">/docs</span>
+              <span class="match-fail">404</span>
+            </div>
+            <div class="match-row">
+              <span class="match-path">/docs/react</span>
+              <span class="match-ok">매칭</span>
+            </div>
+            <div class="match-row">
+              <span class="match-path">/docs/react/hooks</span>
+              <span class="match-ok">매칭</span>
+            </div>
+            <div class="match-row">
+              <span class="match-path">/docs/react/hooks/use</span>
+              <span class="match-ok">매칭</span>
+            </div>
+          </div>
+        </div>
+        <div class="match-card">
+          <div class="match-card-header">[[...slug]]</div>
+          <div class="match-card-body">
+            <div class="match-row">
+              <span class="match-path">/docs</span>
+              <span class="match-ok">매칭</span>
+            </div>
+            <div class="match-row">
+              <span class="match-path">/docs/react</span>
+              <span class="match-ok">매칭</span>
+            </div>
+            <div class="match-row">
+              <span class="match-path">/docs/react/hooks</span>
+              <span class="match-ok">매칭</span>
+            </div>
+            <div class="match-row">
+              <span class="match-path">/docs/react/hooks/use</span>
+              <span class="match-ok">매칭</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p>
+        공식 문서, 다단계 카테고리 페이지, CMS 기반 콘텐츠처럼
+        루트 경로와 하위 경로를 하나의 컴포넌트로 처리해야 할 때 <code>[[...slug]]</code>를 사용합니다.
+        단, <code>params.slug</code>가 <code>undefined</code>일 수 있으므로 반드시 분기 처리가 필요합니다.
+      </p>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- Bad -->
+    <section class="reveal">
+      <h2>예시 코드 — 잘못된 사용</h2>
+
+      <div class="code-block bad">
+        <div class="code-header">Bad — 루트와 하위 경로를 파일을 나눠 관리</div>
+        <pre><code><span class="comment">// app/docs/page.tsx + app/docs/[...slug]/page.tsx 를 따로 만드는 경우</span>
+<span class="comment">// 루트(/docs)와 하위 경로를 별도 파일로 관리하면 로직이 중복됩니다.</span>
+
+<span class="comment">// app/docs/page.tsx</span>
+<span class="keyword">export default function</span> <span class="func">DocsRoot</span>() {
+  <span class="keyword">return</span> &lt;<span class="tag">h1</span>&gt;문서 홈&lt;/<span class="tag">h1</span>&gt;;
+}
+
+<span class="comment">// app/docs/[...slug]/page.tsx</span>
+<span class="keyword">type</span> <span class="type">Props</span> = {
+  <span class="prop">params</span>: <span class="type">Promise</span>&lt;{ <span class="prop">slug</span>: <span class="type">string</span>[] }&gt;;
+};
+
+<span class="keyword">export default async function</span> <span class="func">DocsPage</span>({ params }: <span class="type">Props</span>) {
+  <span class="keyword">const</span> { slug } = <span class="keyword">await</span> params;
+  <span class="keyword">return</span> &lt;<span class="tag">h1</span>&gt;{slug.<span class="func">join</span>(<span class="string">' / '</span>)}&lt;/<span class="tag">h1</span>&gt;;
+}</code></pre>
+      </div>
+
+      <p>
+        루트 경로와 하위 경로에서 보여줄 UI가 비슷한데도 파일을 나눠 관리하고 있습니다.
+        데이터 페칭 로직, 레이아웃, 브레드크럼 같은 공통 코드가 두 파일에 분산됩니다.
+      </p>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- Good -->
+    <section class="reveal">
+      <h2>올바른 사용법</h2>
+
+      <div class="code-block good">
+        <div class="code-header">Good — [[...slug]]: 루트와 하위 경로를 하나의 파일에서 처리</div>
+        <pre><code><span class="comment">// app/docs/[[...slug]]/page.tsx</span>
+
+<span class="keyword">import</span> { notFound } <span class="keyword">from</span> <span class="string">'next/navigation'</span>;
+
+<span class="keyword">type</span> <span class="type">Props</span> = {
+  <span class="prop">params</span>: <span class="type">Promise</span>&lt;{ <span class="prop">slug</span>?: <span class="type">string</span>[] }&gt;;
+};
+
+<span class="keyword">export default async function</span> <span class="func">DocsPage</span>({ params }: <span class="type">Props</span>) {
+  <span class="keyword">const</span> { slug } = <span class="keyword">await</span> params;
+
+  <span class="comment">// slug가 없으면 /docs 루트 — 목차 페이지를 보여줍니다.</span>
+  <span class="keyword">if</span> (!slug) {
+    <span class="keyword">return</span> (
+      &lt;<span class="tag">div</span>&gt;
+        &lt;<span class="tag">h1</span>&gt;문서 홈&lt;/<span class="tag">h1</span>&gt;
+        &lt;<span class="tag">p</span>&gt;왼쪽 메뉴에서 문서를 선택하세요.&lt;/<span class="tag">p</span>&gt;
+      &lt;/<span class="tag">div</span>&gt;
+    );
+  }
+
+  <span class="comment">// slug 배열로 실제 문서를 조회합니다.</span>
+  <span class="comment">// 예: /docs/react/hooks → slug = ['react', 'hooks']</span>
+  <span class="keyword">const</span> doc = <span class="keyword">await</span> <span class="func">fetchDoc</span>(slug);
+
+  <span class="keyword">if</span> (!doc) <span class="func">notFound</span>();
+
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">article</span>&gt;
+      &lt;<span class="tag">nav</span>&gt;{slug.<span class="func">join</span>(<span class="string">' &gt; '</span>)}&lt;/<span class="tag">nav</span>&gt;
+      &lt;<span class="tag">h1</span>&gt;{doc.title}&lt;/<span class="tag">h1</span>&gt;
+      &lt;<span class="tag">div</span>&gt;{doc.content}&lt;/<span class="tag">div</span>&gt;
+    &lt;/<span class="tag">article</span>&gt;
+  );
+}
+
+<span class="keyword">async function</span> <span class="func">fetchDoc</span>(slug: <span class="type">string</span>[]) {
+  <span class="keyword">const</span> path = slug.<span class="func">join</span>(<span class="string">'/'</span>);
+  <span class="keyword">const</span> res = <span class="keyword">await</span> <span class="func">fetch</span>(<span class="string">`https://api.example.com/docs/${path}`</span>);
+  <span class="keyword">if</span> (!res.ok) <span class="keyword">return null</span>;
+  <span class="keyword">return</span> res.<span class="func">json</span>();
+}</code></pre>
+      </div>
+
+      <div class="code-block good">
+        <div class="code-header">Good — generateStaticParams로 정적 경로 미리 생성</div>
+        <pre><code><span class="keyword">export async function</span> <span class="func">generateStaticParams</span>() {
+  <span class="keyword">const</span> res = <span class="keyword">await</span> <span class="func">fetch</span>(<span class="string">'https://api.example.com/docs/all-slugs'</span>);
+  <span class="keyword">const</span> slugs: <span class="type">string</span>[][] = <span class="keyword">await</span> res.<span class="func">json</span>();
+
+  <span class="keyword">return</span> [
+    { <span class="prop">slug</span>: <span class="keyword">undefined</span> },               <span class="comment">// /docs 루트</span>
+    ...slugs.<span class="func">map</span>((s) => ({ <span class="prop">slug</span>: s })), <span class="comment">// /docs/react, /docs/react/hooks 등</span>
+  ];
+}</code></pre>
+      </div>
+
+      <p>
+        <code>slug</code>가 <code>undefined</code>인 경우(루트)와 배열인 경우(하위 경로)를
+        하나의 컴포넌트 안에서 분기 처리하므로, 공통 로직을 중복 없이 관리할 수 있습니다.
+      </p>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 정리 -->
+    <section class="reveal">
+      <h2>정리</h2>
+      <p>
+        루트 경로(<code>/docs</code>)와 하위 경로(<code>/docs/react/hooks</code>)를 동일한 레이아웃과 로직으로
+        처리해야 한다면 <code>[[...slug]]</code>를 선택하세요.
+        단, <code>params.slug</code>가 <code>undefined</code>일 수 있으므로 반드시 분기 처리가 필요합니다.
+      </p>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>구분</th>
+            <th><span class="badge badge-catch">[...slug]</span></th>
+            <th><span class="badge badge-optional">[[...slug]]</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>루트 경로 매칭</td>
+            <td><span class="badge badge-no">X (404)</span></td>
+            <td><span class="badge badge-yes">O</span></td>
+          </tr>
+          <tr>
+            <td>하위 경로 매칭</td>
+            <td><span class="badge badge-yes">O</span></td>
+            <td><span class="badge badge-yes">O</span></td>
+          </tr>
+          <tr>
+            <td>slug 타입</td>
+            <td><code>string[]</code></td>
+            <td><code>string[] | undefined</code></td>
+          </tr>
+          <tr>
+            <td>적합한 경우</td>
+            <td>루트 없이 하위 경로만 필요할 때</td>
+            <td>루트 + 하위 경로를 함께 처리할 때</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 추가 학습 자료 -->
+    <section class="reveal">
+      <h2>추가 학습 자료 공유합니다.</h2>
+      <ul class="resource-list">
+        <li>
+          <a href="https://nextjs.org/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments" target="_blank" rel="noopener noreferrer">
+            Next.js 공식 문서 — Catch-all Segments
+          </a>
+        </li>
+        <li>
+          <a href="https://nextjs.org/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments" target="_blank" rel="noopener noreferrer">
+            Next.js 공식 문서 — Optional Catch-all Segments
+          </a>
+        </li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <p>kangmu238@gmail.com</p>
+        </div>
+        <div class="footer-col">
+          <h4>Socials</h4>
+          <a href="https://github.com/wookminkang" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+        <div class="footer-col">
+          <h4>Etc</h4>
+          <a href="#">팀 소개</a>
+          <a href="#">서비스 피드백</a>
+        </div>
+      </div>
+      <hr class="footer-divider" />
+      <p class="footer-copyright">Copyright &copy; 2026 매일매일. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    const progressBar = document.getElementById('progress-bar');
+    window.addEventListener('scroll', () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      progressBar.style.width = (docHeight > 0 ? (scrollTop / docHeight) * 100 : 0) + '%';
+    });
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+  </script>
+
+</body>
+</html>

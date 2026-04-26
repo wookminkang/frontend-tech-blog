@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Next.js App Router에서 error, loading, not-found 파일은 어떻게 동작하나요? — 매일매일</title>
+  <meta name="description" content="App Router의 특수 파일(error.tsx, loading.tsx, not-found.tsx)로 라우트 세그먼트별 에러/로딩/404를 선언적으로 처리합니다." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #fe6e00;
+      --primary-light: #fff3e8;
+      --bg: #ffffff;
+      --surface: #F9F9F9;
+      --text: #212121;
+      --text-secondary: #757575;
+      --border: #E0E0E0;
+      --code-bg: #1e1e1e;
+      --code-bad: #e05252;
+      --code-good: #4caf7d;
+      --footer-bg: #1A1A2E;
+      --max-width: 720px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 16px;
+      line-height: 1.8;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    /* 읽기 진행 바 */
+    #progress-bar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px;
+      width: 0%;
+      background: var(--primary);
+      z-index: 1000;
+      transition: width 0.1s linear;
+    }
+
+    /* 헤더 */
+    header {
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .header-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .logo span { color: var(--primary); }
+
+    /* 본문 */
+    main {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 56px 24px 80px;
+    }
+
+    /* 카테고리 뱃지 */
+    .category-badge {
+      display: inline-block;
+      padding: 6px 14px 6px 12px;
+      background: var(--primary-light);
+      border-left: 4px solid var(--primary);
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 0 4px 4px 0;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.3;
+      letter-spacing: -0.5px;
+      margin-bottom: 32px;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 40px 0;
+    }
+
+    h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      line-height: 1.3;
+    }
+
+    p { color: var(--text); margin-bottom: 16px; }
+
+    ul, ol { padding-left: 24px; margin-bottom: 16px; }
+    li { margin-bottom: 8px; line-height: 1.8; }
+
+    /* 인라인 코드 */
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* 코드 블록 */
+    .code-block {
+      margin: 20px 0;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .code-header {
+      padding: 10px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .code-header::before {
+      content: '';
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .code-block.bad .code-header {
+      background: #2a1a1a;
+      color: var(--code-bad);
+      border-bottom: 2px solid var(--code-bad);
+    }
+    .code-block.bad .code-header::before { background: var(--code-bad); }
+
+    .code-block.good .code-header {
+      background: #1a2a1e;
+      color: var(--code-good);
+      border-bottom: 2px solid var(--code-good);
+    }
+    .code-block.good .code-header::before { background: var(--code-good); }
+
+    pre {
+      background: var(--code-bg);
+      padding: 20px;
+      overflow-x: auto;
+      margin: 0;
+    }
+
+    pre code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #d4d4d4;
+      background: none;
+      padding: 0;
+      border-radius: 0;
+    }
+
+    .comment { color: #6a9955; }
+    .keyword { color: #569cd6; }
+    .string { color: #ce9178; }
+    .func { color: #dcdcaa; }
+    .type { color: #4ec9b0; }
+    .number { color: #b5cea8; }
+    .prop { color: #9cdcfe; }
+    .tag { color: #f28b54; }
+
+    /* 요약 박스 */
+    .summary-box {
+      background: var(--surface);
+      border-left: 4px solid var(--primary);
+      border-radius: 0 8px 8px 0;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+    .summary-box p { margin-bottom: 0; }
+
+    /* 파일 구조 시각화 */
+    .file-tree {
+      background: var(--code-bg);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin: 24px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 2;
+    }
+
+    .file-tree .dir { color: #9cdcfe; }
+    .file-tree .file-loading { color: #4caf7d; }
+    .file-tree .file-error { color: #e05252; }
+    .file-tree .file-notfound { color: #dcdcaa; }
+    .file-tree .file-page { color: #d4d4d4; }
+    .file-tree .annotation { color: #6a9955; margin-left: 8px; }
+
+    /* 카드 그리드 */
+    .info-grid {
+      display: grid;
+      gap: 16px;
+      margin: 24px 0;
+    }
+
+    .info-card {
+      background: var(--surface);
+      border-radius: 8px;
+      padding: 20px;
+      border-left: 4px solid var(--border);
+    }
+
+    .info-card.loading-card { border-left-color: #4caf7d; }
+    .info-card.error-card { border-left-color: #e05252; }
+    .info-card.notfound-card { border-left-color: #dcdcaa; }
+
+    .info-card h3 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .info-card p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 0;
+    }
+
+    /* 비교 테이블 */
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 24px 0;
+      font-size: 14px;
+    }
+
+    .comparison-table th {
+      background: var(--surface);
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .comparison-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .comparison-table tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .badge-loading { background: #e8f5e9; color: #2e7d32; }
+    .badge-error { background: #fce4ec; color: #c62828; }
+    .badge-notfound { background: #fff8e1; color: #f57f17; }
+    .badge-server { background: #e3f2fd; color: #1565c0; }
+    .badge-client { background: #f3e5f5; color: #6a1b9a; }
+
+    /* 추가 학습 자료 */
+    .resource-list { list-style: none; padding: 0; }
+    .resource-list li { margin-bottom: 12px; }
+    .resource-list a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 15px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .resource-list a::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: var(--primary);
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .resource-list a:hover { text-decoration: underline; }
+
+    /* 푸터 */
+    footer {
+      background: var(--footer-bg);
+      color: #ffffff;
+      padding: 48px 24px 32px;
+    }
+
+    .footer-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      margin-bottom: 40px;
+    }
+
+    .footer-col h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #9e9e9e;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 12px;
+    }
+
+    .footer-col p,
+    .footer-col a {
+      font-size: 14px;
+      color: #bdbdbd;
+      text-decoration: none;
+      display: block;
+      margin-bottom: 6px;
+      line-height: 1.7;
+    }
+
+    .footer-col a:hover { color: #ffffff; }
+
+    .footer-divider {
+      border: none;
+      border-top: 1px solid #2e2e40;
+      margin-bottom: 20px;
+    }
+
+    .footer-copyright {
+      font-size: 13px;
+      color: #616161;
+      text-align: center;
+    }
+
+    /* reveal 애니메이션 */
+    .reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* 반응형 */
+    @media (max-width: 640px) {
+      h1 { font-size: 22px; }
+      main { padding: 40px 20px 64px; }
+      .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+      .comparison-table { font-size: 13px; }
+      .comparison-table th,
+      .comparison-table td { padding: 10px 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="progress-bar"></div>
+
+  <header>
+    <div class="header-inner">
+      <a href="#" class="logo">매일<span>매일</span></a>
+    </div>
+  </header>
+
+  <main>
+
+    <div class="category-badge reveal">프론트엔드에 관련한 질문이에요.</div>
+
+    <h1 class="reveal">Next.js App Router에서 error, loading, not-found 파일은 어떻게 동작하나요?</h1>
+
+    <hr class="reveal" />
+
+    <!-- 핵심 요약 -->
+    <section class="reveal">
+      <h2>핵심 요약</h2>
+      <div class="summary-box">
+        <p>
+          Next.js App Router는 라우트 세그먼트 단위로 <code>error.tsx</code>, <code>loading.tsx</code>, <code>not-found.tsx</code> 파일을 배치해
+          에러, 로딩, 404 상태를 선언적으로 처리합니다. 이 파일들은 Next.js가 자동으로 React의
+          <code>ErrorBoundary</code>와 <code>Suspense</code>로 감싸주므로, 수동으로 상태를 관리할 필요가 없습니다.
+        </p>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 왜 -->
+    <section class="reveal">
+      <h2>왜 이런 문제가 발생하나요?</h2>
+
+      <p>
+        Pages Router에서는 에러, 로딩, 404 상태를 컴포넌트 내부에서 직접 분기 처리하거나,
+        <code>_error.tsx</code> 같은 전역 파일로만 대응할 수 있었습니다.
+        세그먼트별로 다른 UI를 보여주기 어려웠고, 코드가 분산되어 유지보수가 복잡했습니다.
+      </p>
+
+      <p>App Router는 이 문제를 특수 파일(Convention File)로 해결합니다.</p>
+
+      <div class="file-tree">
+        <div><span class="dir">app/</span></div>
+        <div>&nbsp;&nbsp;<span class="dir">posts/</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="dir">[id]/</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file-loading">loading.tsx</span><span class="annotation">// 데이터 로딩 중 폴백 UI (Suspense)</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file-error">error.tsx</span><span class="annotation">// 런타임 에러 폴백 UI (ErrorBoundary)</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file-notfound">not-found.tsx</span><span class="annotation">// 404 폴백 UI</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file-page">page.tsx</span><span class="annotation">// 실제 페이지 컴포넌트</span></div>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-card loading-card">
+          <h3>loading.tsx</h3>
+          <p>
+            해당 세그먼트의 서버 컴포넌트가 데이터를 가져오는 동안 보여줄 스켈레톤 또는 스피너를 정의합니다.
+            내부적으로 <code>Suspense</code>로 감싸집니다. 서버 컴포넌트로 작성합니다.
+          </p>
+        </div>
+        <div class="info-card error-card">
+          <h3>error.tsx</h3>
+          <p>
+            해당 세그먼트에서 발생한 런타임 에러를 잡아 보여줄 폴백 UI를 정의합니다.
+            내부적으로 <code>ErrorBoundary</code>로 감싸집니다.
+            반드시 클라이언트 컴포넌트(<code>'use client'</code>)여야 합니다.
+          </p>
+        </div>
+        <div class="info-card notfound-card">
+          <h3>not-found.tsx</h3>
+          <p>
+            <code>notFound()</code> 함수를 호출하거나 존재하지 않는 경로에 접근했을 때 보여줄 UI를 정의합니다.
+            서버 컴포넌트로 작성합니다.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- Bad -->
+    <section class="reveal">
+      <h2>예시 코드 — 잘못된 사용</h2>
+
+      <div class="code-block bad">
+        <div class="code-header">Bad — 에러/로딩/404를 컴포넌트 내부에서 직접 관리</div>
+        <pre><code><span class="comment">// app/posts/[id]/page.tsx</span>
+
+<span class="string">'use client'</span>;
+
+<span class="keyword">import</span> { useEffect, useState } <span class="keyword">from</span> <span class="string">'react'</span>;
+
+<span class="keyword">export default function</span> <span class="func">PostPage</span>({ params }: { params: { id: <span class="type">string</span> } }) {
+  <span class="keyword">const</span> [post, setPost] = <span class="func">useState</span>(<span class="keyword">null</span>);
+  <span class="keyword">const</span> [loading, setLoading] = <span class="func">useState</span>(<span class="keyword">true</span>);
+  <span class="keyword">const</span> [error, setError] = <span class="func">useState</span>(<span class="keyword">false</span>);
+  <span class="keyword">const</span> [notFound, setNotFound] = <span class="func">useState</span>(<span class="keyword">false</span>);
+
+  <span class="func">useEffect</span>(() => {
+    <span class="func">fetch</span>(<span class="string">`/api/posts/${params.id}`</span>)
+      .<span class="func">then</span>((res) => {
+        <span class="keyword">if</span> (res.status === <span class="number">404</span>) { <span class="func">setNotFound</span>(<span class="keyword">true</span>); <span class="keyword">return</span>; }
+        <span class="keyword">if</span> (!res.ok) { <span class="func">setError</span>(<span class="keyword">true</span>); <span class="keyword">return</span>; }
+        <span class="keyword">return</span> res.<span class="func">json</span>();
+      })
+      .<span class="func">then</span>((data) => { <span class="keyword">if</span> (data) <span class="func">setPost</span>(data); })
+      .<span class="func">catch</span>(() => <span class="func">setError</span>(<span class="keyword">true</span>))
+      .<span class="func">finally</span>(() => <span class="func">setLoading</span>(<span class="keyword">false</span>));
+  }, [params.id]);
+
+  <span class="keyword">if</span> (loading) <span class="keyword">return</span> &lt;<span class="tag">p</span>&gt;불러오는 중...&lt;/<span class="tag">p</span>&gt;;
+  <span class="keyword">if</span> (notFound) <span class="keyword">return</span> &lt;<span class="tag">p</span>&gt;게시글을 찾을 수 없습니다.&lt;/<span class="tag">p</span>&gt;;
+  <span class="keyword">if</span> (error) <span class="keyword">return</span> &lt;<span class="tag">p</span>&gt;오류가 발생했습니다.&lt;/<span class="tag">p</span>&gt;;
+
+  <span class="keyword">return</span> &lt;<span class="tag">h1</span>&gt;{post.title}&lt;/<span class="tag">h1</span>&gt;;
+}</code></pre>
+      </div>
+
+      <p>
+        서버 컴포넌트의 이점을 포기하고 클라이언트에서 데이터를 직접 가져오고 있습니다.
+        상태 분기가 컴포넌트 내부에 뒤섞여 코드가 복잡해지고, 에러/로딩 UI를 재사용하기 어렵습니다.
+      </p>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- Good -->
+    <section class="reveal">
+      <h2>올바른 사용법</h2>
+
+      <div class="code-block good">
+        <div class="code-header">Good — loading.tsx: 로딩 중 폴백 UI</div>
+        <pre><code><span class="comment">// app/posts/[id]/loading.tsx</span>
+
+<span class="keyword">export default function</span> <span class="func">Loading</span>() {
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">div</span>&gt;
+      &lt;<span class="tag">div</span> <span class="prop">style</span>={{ background: <span class="string">'#E0E0E0'</span>, height: <span class="number">32</span>, borderRadius: <span class="number">4</span>, marginBottom: <span class="number">16</span> }} /&gt;
+      &lt;<span class="tag">div</span> <span class="prop">style</span>={{ background: <span class="string">'#E0E0E0'</span>, height: <span class="number">16</span>, borderRadius: <span class="number">4</span>, marginBottom: <span class="number">8</span> }} /&gt;
+      &lt;<span class="tag">div</span> <span class="prop">style</span>={{ background: <span class="string">'#E0E0E0'</span>, height: <span class="number">16</span>, borderRadius: <span class="number">4</span>, width: <span class="string">'60%'</span> }} /&gt;
+    &lt;/<span class="tag">div</span>&gt;
+  );
+}</code></pre>
+      </div>
+
+      <div class="code-block good">
+        <div class="code-header">Good — error.tsx: 런타임 에러 폴백 UI ('use client' 필수)</div>
+        <pre><code><span class="comment">// app/posts/[id]/error.tsx</span>
+
+<span class="string">'use client'</span>;
+
+<span class="keyword">export default function</span> <span class="func">Error</span>({
+  error,
+  reset,
+}: {
+  <span class="prop">error</span>: <span class="type">Error</span>;
+  <span class="prop">reset</span>: () => <span class="type">void</span>;
+}) {
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">div</span>&gt;
+      &lt;<span class="tag">p</span>&gt;게시글을 불러오는 중 오류가 발생했습니다.&lt;/<span class="tag">p</span>&gt;
+      &lt;<span class="tag">p</span>&gt;{error.message}&lt;/<span class="tag">p</span>&gt;
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={reset}&gt;다시 시도&lt;/<span class="tag">button</span>&gt;
+    &lt;/<span class="tag">div</span>&gt;
+  );
+}</code></pre>
+      </div>
+
+      <div class="code-block good">
+        <div class="code-header">Good — not-found.tsx: 404 폴백 UI</div>
+        <pre><code><span class="comment">// app/posts/[id]/not-found.tsx</span>
+
+<span class="keyword">export default function</span> <span class="func">NotFound</span>() {
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">div</span>&gt;
+      &lt;<span class="tag">h2</span>&gt;게시글을 찾을 수 없습니다.&lt;/<span class="tag">h2</span>&gt;
+      &lt;<span class="tag">p</span>&gt;삭제되었거나 존재하지 않는 게시글입니다.&lt;/<span class="tag">p</span>&gt;
+    &lt;/<span class="tag">div</span>&gt;
+  );
+}</code></pre>
+      </div>
+
+      <div class="code-block good">
+        <div class="code-header">Good — page.tsx: 서버 컴포넌트에서 notFound() / throw 사용</div>
+        <pre><code><span class="comment">// app/posts/[id]/page.tsx</span>
+
+<span class="keyword">import</span> { notFound } <span class="keyword">from</span> <span class="string">'next/navigation'</span>;
+
+<span class="keyword">type</span> <span class="type">Props</span> = {
+  <span class="prop">params</span>: <span class="type">Promise</span>&lt;{ <span class="prop">id</span>: <span class="type">string</span> }&gt;;
+};
+
+<span class="keyword">export default async function</span> <span class="func">PostPage</span>({ params }: <span class="type">Props</span>) {
+  <span class="keyword">const</span> { id } = <span class="keyword">await</span> params;
+  <span class="keyword">const</span> res = <span class="keyword">await</span> <span class="func">fetch</span>(<span class="string">`https://api.example.com/posts/${id}`</span>);
+
+  <span class="keyword">if</span> (res.status === <span class="number">404</span>) <span class="func">notFound</span>(); <span class="comment">// not-found.tsx 렌더링</span>
+  <span class="keyword">if</span> (!res.ok) <span class="keyword">throw new</span> <span class="func">Error</span>(<span class="string">'게시글 조회 실패'</span>); <span class="comment">// error.tsx 렌더링</span>
+
+  <span class="keyword">const</span> post = <span class="keyword">await</span> res.<span class="func">json</span>();
+
+  <span class="keyword">return</span> &lt;<span class="tag">h1</span>&gt;{post.title}&lt;/<span class="tag">h1</span>&gt;;
+}</code></pre>
+      </div>
+
+      <p>
+        각 특수 파일이 역할을 나눠가지므로 <code>page.tsx</code>는 데이터 페칭과 렌더링에만 집중할 수 있습니다.
+        폴더 구조만 보아도 어떤 세그먼트에서 어떤 상태를 처리하는지 파악할 수 있습니다.
+      </p>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 정리 -->
+    <section class="reveal">
+      <h2>정리</h2>
+      <p>
+        세 파일 모두 라우트 폴더 단위로 독립 배치가 가능합니다.
+        전체 앱에 하나의 에러/로딩 UI를 쓰고 싶다면 <code>app/</code> 루트에,
+        특정 섹션만 다르게 하고 싶다면 해당 폴더에 추가하면 됩니다.
+      </p>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>파일</th>
+            <th>역할</th>
+            <th>컴포넌트 종류</th>
+            <th>트리거 조건</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-loading">loading.tsx</span></td>
+            <td>로딩 중 폴백 UI</td>
+            <td><span class="badge badge-server">서버</span></td>
+            <td>Suspense 해소 전</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-error">error.tsx</span></td>
+            <td>에러 폴백 UI</td>
+            <td><span class="badge badge-client">클라이언트 필수</span></td>
+            <td>런타임 에러 발생 시</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-notfound">not-found.tsx</span></td>
+            <td>404 UI</td>
+            <td><span class="badge badge-server">서버</span></td>
+            <td><code>notFound()</code> 호출 또는 매칭 실패</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 추가 학습 자료 -->
+    <section class="reveal">
+      <h2>추가 학습 자료 공유합니다.</h2>
+      <ul class="resource-list">
+        <li>
+          <a href="https://nextjs.org/docs/app/building-your-application/routing/error-handling" target="_blank" rel="noopener noreferrer">
+            Next.js 공식 문서 — Error Handling
+          </a>
+        </li>
+        <li>
+          <a href="https://nextjs.org/docs/app/building-your-application/routing/loading-ui-and-streaming" target="_blank" rel="noopener noreferrer">
+            Next.js 공식 문서 — Loading UI and Streaming
+          </a>
+        </li>
+      </ul>
+    </section>
+
+  </main>
+
+  <!-- 푸터 -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <p>kangmu238@gmail.com</p>
+        </div>
+        <div class="footer-col">
+          <h4>Socials</h4>
+          <a href="https://github.com/wookminkang" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+        <div class="footer-col">
+          <h4>Etc</h4>
+          <a href="#">팀 소개</a>
+          <a href="#">서비스 피드백</a>
+        </div>
+      </div>
+      <hr class="footer-divider" />
+      <p class="footer-copyright">Copyright &copy; 2026 매일매일. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    const progressBar = document.getElementById('progress-bar');
+
+    window.addEventListener('scroll', () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+      progressBar.style.width = progress + '%';
+    });
+
+    const reveals = document.querySelectorAll('.reveal');
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    reveals.forEach((el) => observer.observe(el));
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>React에서 왜 상태를 직접 변경하면 안 되나요? — 매일매일</title>
+  <meta name="description" content="React는 얕은 비교로 상태 변경을 감지합니다. 기존 참조를 직접 수정하면 리렌더링이 발생하지 않는 이유를 알아봅니다." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #fe6e00;
+      --primary-light: #fff3e8;
+      --bg: #ffffff;
+      --surface: #F9F9F9;
+      --text: #212121;
+      --text-secondary: #757575;
+      --border: #E0E0E0;
+      --code-bg: #1e1e1e;
+      --code-bad: #e05252;
+      --code-good: #4caf7d;
+      --footer-bg: #1A1A2E;
+      --max-width: 720px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 16px;
+      line-height: 1.8;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    #progress-bar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px; width: 0%;
+      background: var(--primary);
+      z-index: 1000;
+      transition: width 0.1s linear;
+    }
+
+    header {
+      position: sticky; top: 0;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .header-inner {
+      max-width: var(--max-width);
+      margin: 0 auto; padding: 0 24px;
+      height: 56px; display: flex; align-items: center;
+    }
+
+    .logo { font-size: 18px; font-weight: 700; color: var(--text); text-decoration: none; }
+    .logo span { color: var(--primary); }
+
+    main { max-width: var(--max-width); margin: 0 auto; padding: 56px 24px 80px; }
+
+    .category-badge {
+      display: inline-block;
+      padding: 6px 14px 6px 12px;
+      background: var(--primary-light);
+      border-left: 4px solid var(--primary);
+      color: var(--primary);
+      font-size: 13px; font-weight: 600;
+      border-radius: 0 4px 4px 0;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 28px; font-weight: 700;
+      line-height: 1.3; letter-spacing: -0.5px;
+      margin-bottom: 32px;
+    }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+    h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; line-height: 1.3; }
+
+    p { color: var(--text); margin-bottom: 16px; }
+    ul, ol { padding-left: 24px; margin-bottom: 16px; }
+    li { margin-bottom: 8px; line-height: 1.8; }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 2px 6px; border-radius: 4px;
+    }
+
+    /* 코드 블록 */
+    .code-block { margin: 20px 0; border-radius: 10px; overflow: hidden; }
+
+    .code-header {
+      padding: 10px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; font-weight: 500;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .code-header::before {
+      content: '';
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%; flex-shrink: 0;
+    }
+
+    .code-block.bad .code-header {
+      background: #2a1a1a; color: var(--code-bad);
+      border-bottom: 2px solid var(--code-bad);
+    }
+    .code-block.bad .code-header::before { background: var(--code-bad); }
+
+    .code-block.good .code-header {
+      background: #1a2a1e; color: var(--code-good);
+      border-bottom: 2px solid var(--code-good);
+    }
+    .code-block.good .code-header::before { background: var(--code-good); }
+
+    .code-block.neutral .code-header {
+      background: #1e1e2e; color: #9cdcfe;
+      border-bottom: 2px solid #3a3a5e;
+    }
+    .code-block.neutral .code-header::before { background: #9cdcfe; }
+
+    pre { background: var(--code-bg); padding: 20px; overflow-x: auto; margin: 0; }
+
+    pre code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; line-height: 1.6;
+      color: #d4d4d4; background: none;
+      padding: 0; border-radius: 0;
+    }
+
+    .comment { color: #6a9955; }
+    .keyword { color: #569cd6; }
+    .string { color: #ce9178; }
+    .func { color: #dcdcaa; }
+    .type { color: #4ec9b0; }
+    .number { color: #b5cea8; }
+    .prop { color: #9cdcfe; }
+    .tag { color: #f28b54; }
+    .op { color: #d4d4d4; }
+
+    /* 요약 박스 */
+    .summary-box {
+      background: var(--surface);
+      border-left: 4px solid var(--primary);
+      border-radius: 0 8px 8px 0;
+      padding: 20px 24px; margin-bottom: 16px;
+    }
+    .summary-box p { margin-bottom: 0; }
+
+    /* 개념 시각화 */
+    .concept-visual {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      margin: 24px 0;
+    }
+
+    .concept-visual h3 {
+      font-size: 14px; font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .ref-diagram {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+    }
+
+    .ref-box {
+      background: #2a2a3e;
+      color: #9cdcfe;
+      padding: 8px 14px;
+      border-radius: 6px;
+    }
+
+    .ref-arrow {
+      color: var(--text-secondary);
+      font-size: 16px;
+    }
+
+    .ref-mem {
+      background: #1e2e1e;
+      color: #4caf7d;
+      padding: 8px 14px;
+      border-radius: 6px;
+    }
+
+    .ref-mem.mutated {
+      background: #2e1e1e;
+      color: #e05252;
+    }
+
+    .ref-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-family: 'Pretendard', sans-serif;
+      margin-top: 6px;
+    }
+
+    .ref-item { display: flex; flex-direction: column; align-items: center; }
+
+    /* 이유 카드 */
+    .reason-grid { display: grid; gap: 12px; margin: 24px 0; }
+
+    .reason-card {
+      background: var(--surface);
+      border-radius: 8px;
+      padding: 18px 20px;
+      display: flex; gap: 16px; align-items: flex-start;
+    }
+
+    .reason-num {
+      width: 28px; height: 28px;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .reason-body h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .reason-body p { font-size: 14px; color: var(--text-secondary); margin-bottom: 0; }
+
+    /* 비교 테이블 */
+    .comparison-table {
+      width: 100%; border-collapse: collapse;
+      margin: 24px 0; font-size: 14px;
+    }
+
+    .comparison-table th {
+      background: var(--surface);
+      padding: 12px 16px;
+      text-align: left; font-weight: 600;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .comparison-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .comparison-table tr:last-child td { border-bottom: none; }
+
+    .code-bad-inline {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--code-bad);
+      background: #2a1a1a;
+      padding: 2px 8px; border-radius: 4px;
+    }
+
+    .code-good-inline {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--code-good);
+      background: #1a2a1e;
+      padding: 2px 8px; border-radius: 4px;
+    }
+
+    /* 추가 학습 자료 */
+    .resource-list { list-style: none; padding: 0; }
+    .resource-list li { margin-bottom: 12px; }
+    .resource-list a {
+      color: var(--primary); text-decoration: none;
+      font-size: 15px; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .resource-list a::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: var(--primary); border-radius: 50%; flex-shrink: 0;
+    }
+    .resource-list a:hover { text-decoration: underline; }
+
+    /* 푸터 */
+    footer { background: var(--footer-bg); color: #ffffff; padding: 48px 24px 32px; }
+    .footer-inner { max-width: var(--max-width); margin: 0 auto; }
+    .footer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-bottom: 40px; }
+    .footer-col h4 { font-size: 13px; font-weight: 600; color: #9e9e9e; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+    .footer-col p, .footer-col a { font-size: 14px; color: #bdbdbd; text-decoration: none; display: block; margin-bottom: 6px; line-height: 1.7; }
+    .footer-col a:hover { color: #ffffff; }
+    .footer-divider { border: none; border-top: 1px solid #2e2e40; margin-bottom: 20px; }
+    .footer-copyright { font-size: 13px; color: #616161; text-align: center; }
+
+    /* reveal */
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 640px) {
+      h1 { font-size: 22px; }
+      main { padding: 40px 20px 64px; }
+      .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+      .comparison-table { font-size: 12px; }
+      .comparison-table th, .comparison-table td { padding: 10px 10px; }
+      .ref-diagram { gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="progress-bar"></div>
+
+  <header>
+    <div class="header-inner">
+      <a href="#" class="logo">매일<span>매일</span></a>
+    </div>
+  </header>
+
+  <main>
+
+    <div class="category-badge reveal">프론트엔드에 관련한 질문이에요.</div>
+
+    <h1 class="reveal">React에서 왜 상태를 직접 변경하면 안 되나요?</h1>
+
+    <hr class="reveal" />
+
+    <!-- 핵심 요약 -->
+    <section class="reveal">
+      <h2>핵심 요약</h2>
+      <div class="summary-box">
+        <p>
+          React는 이전 상태와 새 상태를 <strong>얕은 비교(shallow comparison)</strong>로 감지합니다.
+          객체나 배열을 직접 수정하면 참조값이 바뀌지 않아 React가 변경을 감지하지 못하고, 리렌더링이 발생하지 않습니다.
+          불변성을 지킨다는 것은 기존 값을 바꾸는 것이 아니라 <strong>새로운 참조를 가진 값을 만들어 반환</strong>하는 것입니다.
+        </p>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 왜 -->
+    <section class="reveal">
+      <h2>왜 이런 문제가 발생하나요?</h2>
+
+      <p>
+        JavaScript에서 객체와 배열은 <strong>참조 타입</strong>입니다.
+        변수에는 실제 값이 아니라 메모리 주소(참조)가 저장됩니다.
+      </p>
+
+      <div class="concept-visual">
+        <h3>참조 타입의 동작 방식</h3>
+        <div class="ref-diagram">
+          <div class="ref-item">
+            <div class="ref-box">a</div>
+            <div class="ref-label">변수 a</div>
+          </div>
+          <div class="ref-arrow">&#8594;</div>
+          <div class="ref-item">
+            <div class="ref-mem">{ count: 0 }</div>
+            <div class="ref-label">메모리 주소 0x001</div>
+          </div>
+        </div>
+        <div style="margin: 12px 0; color: var(--text-secondary); font-size: 14px;">
+          <code style="color:#9cdcfe; background:#1e1e2e;">b = a</code> 를 하면 b도 같은 주소를 가리킵니다.
+          <code style="color:#e05252; background:#2a1a1a;">b.count = 1</code> 로 수정해도 주소는 그대로 — React는 변화를 모릅니다.
+        </div>
+      </div>
+
+      <p>
+        React의 <code>useState</code>와 <code>useReducer</code>는 상태가 바뀌었는지 판단할 때
+        이전 참조와 새 참조를 <code>Object.is</code>로 비교합니다.
+        참조가 같으면 변경이 없다고 판단해 리렌더링을 건너뜁니다.
+      </p>
+
+      <div class="reason-grid">
+        <div class="reason-card">
+          <div class="reason-num">1</div>
+          <div class="reason-body">
+            <h3>리렌더링 보장</h3>
+            <p>새 참조를 반환해야 React가 변경을 감지하고 화면을 업데이트합니다.</p>
+          </div>
+        </div>
+        <div class="reason-card">
+          <div class="reason-num">2</div>
+          <div class="reason-body">
+            <h3>예측 가능성</h3>
+            <p>이전 상태가 보존되므로 디버깅과 상태 추적이 쉬워집니다.</p>
+          </div>
+        </div>
+        <div class="reason-card">
+          <div class="reason-num">3</div>
+          <div class="reason-body">
+            <h3>React 최적화 호환</h3>
+            <p><code>React.memo</code>, <code>useMemo</code>, <code>useCallback</code> 등 참조 비교에 의존하는 최적화 도구들이 올바르게 동작합니다.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- Bad -->
+    <section class="reveal">
+      <h2>예시 코드 — 잘못된 사용</h2>
+
+      <div class="code-block bad">
+        <div class="code-header">Bad — 배열/객체를 직접 수정</div>
+        <pre><code><span class="keyword">import</span> { useState } <span class="keyword">from</span> <span class="string">'react'</span>;
+
+<span class="keyword">type</span> <span class="type">Item</span> = { <span class="prop">id</span>: <span class="type">number</span>; <span class="prop">name</span>: <span class="type">string</span> };
+
+<span class="keyword">export default function</span> <span class="func">ItemList</span>() {
+  <span class="keyword">const</span> [items, setItems] = <span class="func">useState</span>&lt;<span class="type">Item</span>[]&gt;([
+    { <span class="prop">id</span>: <span class="number">1</span>, <span class="prop">name</span>: <span class="string">'React'</span> },
+    { <span class="prop">id</span>: <span class="number">2</span>, <span class="prop">name</span>: <span class="string">'Next.js'</span> },
+  ]);
+
+  <span class="keyword">const</span> <span class="func">addItem</span> = () => {
+    <span class="comment">// 기존 배열을 직접 수정합니다. 참조가 바뀌지 않아 리렌더링이 발생하지 않습니다.</span>
+    items.<span class="func">push</span>({ <span class="prop">id</span>: <span class="number">3</span>, <span class="prop">name</span>: <span class="string">'TypeScript'</span> });
+    <span class="func">setItems</span>(items); <span class="comment">// 같은 참조 — React는 변경을 감지하지 못합니다.</span>
+  };
+
+  <span class="keyword">const</span> <span class="func">updateFirst</span> = () => {
+    <span class="comment">// 기존 객체를 직접 수정합니다.</span>
+    items[<span class="number">0</span>].name = <span class="string">'React 19'</span>;
+    <span class="func">setItems</span>(items); <span class="comment">// 리렌더링 안 됨</span>
+  };
+
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">ul</span>&gt;
+      {items.<span class="func">map</span>((item) =&gt; &lt;<span class="tag">li</span> <span class="prop">key</span>={item.id}&gt;{item.name}&lt;/<span class="tag">li</span>&gt;)}
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={addItem}&gt;추가&lt;/<span class="tag">button</span>&gt;
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={updateFirst}&gt;수정&lt;/<span class="tag">button</span>&gt;
+    &lt;/<span class="tag">ul</span>&gt;
+  );
+}</code></pre>
+      </div>
+
+      <p>
+        <code>push</code>와 직접 할당은 기존 배열/객체를 변경하므로 참조가 그대로입니다.
+        <code>setItems</code>에 같은 참조를 전달하면 React는 상태가 바뀌지 않았다고 판단해 리렌더링을 건너뜁니다.
+      </p>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- Good -->
+    <section class="reveal">
+      <h2>올바른 사용법</h2>
+
+      <div class="code-block good">
+        <div class="code-header">Good — 새 참조를 만들어 반환</div>
+        <pre><code><span class="keyword">import</span> { useState } <span class="keyword">from</span> <span class="string">'react'</span>;
+
+<span class="keyword">type</span> <span class="type">Item</span> = { <span class="prop">id</span>: <span class="type">number</span>; <span class="prop">name</span>: <span class="type">string</span> };
+
+<span class="keyword">export default function</span> <span class="func">ItemList</span>() {
+  <span class="keyword">const</span> [items, setItems] = <span class="func">useState</span>&lt;<span class="type">Item</span>[]&gt;([
+    { <span class="prop">id</span>: <span class="number">1</span>, <span class="prop">name</span>: <span class="string">'React'</span> },
+    { <span class="prop">id</span>: <span class="number">2</span>, <span class="prop">name</span>: <span class="string">'Next.js'</span> },
+  ]);
+
+  <span class="keyword">const</span> <span class="func">addItem</span> = () => {
+    <span class="comment">// 스프레드 연산자로 새 배열을 만들어 반환합니다.</span>
+    <span class="func">setItems</span>([...items, { <span class="prop">id</span>: <span class="number">3</span>, <span class="prop">name</span>: <span class="string">'TypeScript'</span> }]);
+  };
+
+  <span class="keyword">const</span> <span class="func">updateFirst</span> = () => {
+    <span class="comment">// map으로 새 배열을 만들고, 수정 대상만 새 객체로 교체합니다.</span>
+    <span class="func">setItems</span>(items.<span class="func">map</span>((item) =>
+      item.id === <span class="number">1</span> ? { ...item, <span class="prop">name</span>: <span class="string">'React 19'</span> } : item
+    ));
+  };
+
+  <span class="keyword">const</span> <span class="func">removeItem</span> = (id: <span class="type">number</span>) => {
+    <span class="comment">// filter로 해당 항목을 제외한 새 배열을 만들어 반환합니다.</span>
+    <span class="func">setItems</span>(items.<span class="func">filter</span>((item) => item.id !== id));
+  };
+
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">ul</span>&gt;
+      {items.<span class="func">map</span>((item) => (
+        &lt;<span class="tag">li</span> <span class="prop">key</span>={item.id}&gt;
+          {item.name}
+          &lt;<span class="tag">button</span> <span class="prop">onClick</span>={() => <span class="func">removeItem</span>(item.id)}&gt;삭제&lt;/<span class="tag">button</span>&gt;
+        &lt;/<span class="tag">li</span>&gt;
+      ))}
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={addItem}&gt;추가&lt;/<span class="tag">button</span>&gt;
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={updateFirst}&gt;수정&lt;/<span class="tag">button</span>&gt;
+    &lt;/<span class="tag">ul</span>&gt;
+  );
+}</code></pre>
+      </div>
+
+      <p>
+        <code>[...items]</code>, <code>map</code>, <code>filter</code>는 모두 원본을 건드리지 않고 새 배열을 반환합니다.
+        React는 새 참조를 받아 변경을 감지하고 리렌더링을 실행합니다.
+      </p>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 정리 -->
+    <section class="reveal">
+      <h2>정리</h2>
+
+      <p>
+        불변성을 지키기 위한 패턴을 조작 유형별로 정리하면 다음과 같습니다.
+        중첩이 깊은 객체를 자주 수정해야 한다면 <code>immer</code> 라이브러리를 사용하면
+        불변성을 유지하면서도 직접 수정하는 것처럼 코드를 작성할 수 있습니다.
+      </p>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>조작</th>
+            <th>직접 변경 (금지)</th>
+            <th>불변 패턴 (권장)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>항목 추가</td>
+            <td><span class="code-bad-inline">arr.push(item)</span></td>
+            <td><span class="code-good-inline">[...arr, item]</span></td>
+          </tr>
+          <tr>
+            <td>항목 제거</td>
+            <td><span class="code-bad-inline">arr.splice(i, 1)</span></td>
+            <td><span class="code-good-inline">arr.filter(...)</span></td>
+          </tr>
+          <tr>
+            <td>항목 수정</td>
+            <td><span class="code-bad-inline">arr[i].name = 'x'</span></td>
+            <td><span class="code-good-inline">arr.map(...)</span></td>
+          </tr>
+          <tr>
+            <td>객체 수정</td>
+            <td><span class="code-bad-inline">obj.key = value</span></td>
+            <td><span class="code-good-inline">&#123; ...obj, key: value &#125;</span></td>
+          </tr>
+          <tr>
+            <td>중첩 객체 수정</td>
+            <td><span class="code-bad-inline">obj.a.b = value</span></td>
+            <td><span class="code-good-inline">&#123; ...obj, a: &#123; ...obj.a, b: value &#125; &#125;</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 추가 학습 자료 -->
+    <section class="reveal">
+      <h2>추가 학습 자료 공유합니다.</h2>
+      <ul class="resource-list">
+        <li>
+          <a href="https://react.dev/learn/updating-objects-in-state" target="_blank" rel="noopener noreferrer">
+            React 공식 문서 — Updating Objects in State
+          </a>
+        </li>
+        <li>
+          <a href="https://react.dev/learn/updating-arrays-in-state" target="_blank" rel="noopener noreferrer">
+            React 공식 문서 — Updating Arrays in State
+          </a>
+        </li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <p>kangmu238@gmail.com</p>
+        </div>
+        <div class="footer-col">
+          <h4>Socials</h4>
+          <a href="https://github.com/wookminkang" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+        <div class="footer-col">
+          <h4>Etc</h4>
+          <a href="#">팀 소개</a>
+          <a href="#">서비스 피드백</a>
+        </div>
+      </div>
+      <hr class="footer-divider" />
+      <p class="footer-copyright">Copyright &copy; 2026 매일매일. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    const progressBar = document.getElementById('progress-bar');
+    window.addEventListener('scroll', () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      progressBar.style.width = (docHeight > 0 ? (scrollTop / docHeight) * 100 : 0) + '%';
+    });
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>React 컴포넌트는 어떤 조건에서 리렌더링되나요? — 매일매일</title>
+  <meta name="description" content="React 컴포넌트는 상태 변경, 부모 리렌더링, Context 변경, 커스텀 훅 상태 변경의 네 가지 조건에서 리렌더링됩니다." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #fe6e00;
+      --primary-light: #fff3e8;
+      --bg: #ffffff;
+      --surface: #F9F9F9;
+      --text: #212121;
+      --text-secondary: #757575;
+      --border: #E0E0E0;
+      --code-bg: #1e1e1e;
+      --code-bad: #e05252;
+      --code-good: #4caf7d;
+      --footer-bg: #1A1A2E;
+      --max-width: 720px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 16px; line-height: 1.8;
+      color: var(--text); background: var(--bg);
+    }
+
+    #progress-bar {
+      position: fixed; top: 0; left: 0;
+      height: 3px; width: 0%;
+      background: var(--primary); z-index: 1000;
+      transition: width 0.1s linear;
+    }
+
+    header {
+      position: sticky; top: 0;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .header-inner {
+      max-width: var(--max-width); margin: 0 auto;
+      padding: 0 24px; height: 56px;
+      display: flex; align-items: center;
+    }
+
+    .logo { font-size: 18px; font-weight: 700; color: var(--text); text-decoration: none; }
+    .logo span { color: var(--primary); }
+
+    main { max-width: var(--max-width); margin: 0 auto; padding: 56px 24px 80px; }
+
+    .category-badge {
+      display: inline-block;
+      padding: 6px 14px 6px 12px;
+      background: var(--primary-light);
+      border-left: 4px solid var(--primary);
+      color: var(--primary);
+      font-size: 13px; font-weight: 600;
+      border-radius: 0 4px 4px 0;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 28px; font-weight: 700;
+      line-height: 1.3; letter-spacing: -0.5px;
+      margin-bottom: 32px;
+    }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+    h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; line-height: 1.3; }
+    p { color: var(--text); margin-bottom: 16px; }
+    ul, ol { padding-left: 24px; margin-bottom: 16px; }
+    li { margin-bottom: 8px; line-height: 1.8; }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; color: var(--primary);
+      background: var(--primary-light);
+      padding: 2px 6px; border-radius: 4px;
+    }
+
+    /* 코드 블록 */
+    .code-block { margin: 20px 0; border-radius: 10px; overflow: hidden; }
+
+    .code-header {
+      padding: 10px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; font-weight: 500;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .code-header::before {
+      content: ''; display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%; flex-shrink: 0;
+    }
+
+    .code-block.bad .code-header {
+      background: #2a1a1a; color: var(--code-bad);
+      border-bottom: 2px solid var(--code-bad);
+    }
+    .code-block.bad .code-header::before { background: var(--code-bad); }
+
+    .code-block.good .code-header {
+      background: #1a2a1e; color: var(--code-good);
+      border-bottom: 2px solid var(--code-good);
+    }
+    .code-block.good .code-header::before { background: var(--code-good); }
+
+    pre { background: var(--code-bg); padding: 20px; overflow-x: auto; margin: 0; }
+
+    pre code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; line-height: 1.6;
+      color: #d4d4d4; background: none;
+      padding: 0; border-radius: 0;
+    }
+
+    .comment { color: #6a9955; }
+    .keyword { color: #569cd6; }
+    .string { color: #ce9178; }
+    .func { color: #dcdcaa; }
+    .type { color: #4ec9b0; }
+    .number { color: #b5cea8; }
+    .prop { color: #9cdcfe; }
+    .tag { color: #f28b54; }
+
+    /* 요약 박스 */
+    .summary-box {
+      background: var(--surface);
+      border-left: 4px solid var(--primary);
+      border-radius: 0 8px 8px 0;
+      padding: 20px 24px; margin-bottom: 16px;
+    }
+    .summary-box p { margin-bottom: 0; }
+
+    /* 4가지 조건 카드 */
+    .condition-grid { display: grid; gap: 12px; margin: 24px 0; }
+
+    .condition-card {
+      background: var(--surface);
+      border-radius: 8px; padding: 18px 20px;
+      display: flex; gap: 16px; align-items: flex-start;
+      border-left: 4px solid var(--border);
+    }
+
+    .condition-card:nth-child(1) { border-left-color: #1565c0; }
+    .condition-card:nth-child(2) { border-left-color: var(--primary); }
+    .condition-card:nth-child(3) { border-left-color: #6a1b9a; }
+    .condition-card:nth-child(4) { border-left-color: #2e7d32; }
+
+    .cond-num {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
+      flex-shrink: 0; color: #fff;
+    }
+
+    .condition-card:nth-child(1) .cond-num { background: #1565c0; }
+    .condition-card:nth-child(2) .cond-num { background: var(--primary); }
+    .condition-card:nth-child(3) .cond-num { background: #6a1b9a; }
+    .condition-card:nth-child(4) .cond-num { background: #2e7d32; }
+
+    .cond-body h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .cond-body p  { font-size: 14px; color: var(--text-secondary); margin-bottom: 0; line-height: 1.7; }
+
+    /* 컴포넌트 트리 시각화 */
+    .tree-visual {
+      background: var(--code-bg);
+      border-radius: 10px;
+      padding: 20px 24px; margin: 24px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; line-height: 2;
+    }
+
+    .tree-visual .tree-label {
+      font-family: 'Pretendard', sans-serif;
+      font-size: 12px; font-weight: 600;
+      color: #9e9e9e; text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 12px;
+      display: block;
+    }
+
+    .tree-rerenders { color: var(--code-bad); }
+    .tree-safe      { color: var(--code-good); }
+    .tree-neutral   { color: #d4d4d4; }
+    .tree-dim       { color: #6a9955; margin-left: 8px; }
+
+    /* 해결 방법 탭 스타일 */
+    .solution-grid { display: grid; gap: 0; margin: 24px 0; }
+
+    .solution-label {
+      display: inline-block;
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .label-method1 { background: #e3f2fd; color: #1565c0; }
+    .label-method2 { background: var(--primary-light); color: var(--primary); }
+
+    /* 비교 테이블 */
+    .comparison-table {
+      width: 100%; border-collapse: collapse;
+      margin: 24px 0; font-size: 14px;
+    }
+
+    .comparison-table th {
+      background: var(--surface);
+      padding: 12px 16px;
+      text-align: left; font-weight: 600;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .comparison-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .comparison-table tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+    }
+
+    .badge-1 { background: #e3f2fd; color: #1565c0; }
+    .badge-2 { background: var(--primary-light); color: var(--primary); }
+    .badge-3 { background: #f3e5f5; color: #6a1b9a; }
+    .badge-4 { background: #e8f5e9; color: #2e7d32; }
+
+    /* 추가 학습 자료 */
+    .resource-list { list-style: none; padding: 0; }
+    .resource-list li { margin-bottom: 12px; }
+    .resource-list a {
+      color: var(--primary); text-decoration: none;
+      font-size: 15px; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .resource-list a::before {
+      content: ''; display: inline-block;
+      width: 6px; height: 6px;
+      background: var(--primary); border-radius: 50%; flex-shrink: 0;
+    }
+    .resource-list a:hover { text-decoration: underline; }
+
+    /* 팁 박스 */
+    .tip-box {
+      background: #e8f5e9;
+      border-left: 4px solid #4caf7d;
+      border-radius: 0 8px 8px 0;
+      padding: 16px 20px; margin: 20px 0;
+    }
+    .tip-box p { margin-bottom: 0; font-size: 14px; color: #1b5e20; }
+
+    /* 푸터 */
+    footer { background: var(--footer-bg); color: #ffffff; padding: 48px 24px 32px; }
+    .footer-inner { max-width: var(--max-width); margin: 0 auto; }
+    .footer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-bottom: 40px; }
+    .footer-col h4 { font-size: 13px; font-weight: 600; color: #9e9e9e; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+    .footer-col p, .footer-col a { font-size: 14px; color: #bdbdbd; text-decoration: none; display: block; margin-bottom: 6px; line-height: 1.7; }
+    .footer-col a:hover { color: #ffffff; }
+    .footer-divider { border: none; border-top: 1px solid #2e2e40; margin-bottom: 20px; }
+    .footer-copyright { font-size: 13px; color: #616161; text-align: center; }
+
+    /* reveal */
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 640px) {
+      h1 { font-size: 22px; }
+      main { padding: 40px 20px 64px; }
+      .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+      .comparison-table { font-size: 13px; }
+      .comparison-table th, .comparison-table td { padding: 10px 10px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="progress-bar"></div>
+
+  <header>
+    <div class="header-inner">
+      <a href="#" class="logo">매일<span>매일</span></a>
+    </div>
+  </header>
+
+  <main>
+
+    <div class="category-badge reveal">프론트엔드에 관련한 질문이에요.</div>
+    <h1 class="reveal">React 컴포넌트는 어떤 조건에서 리렌더링되나요?</h1>
+
+    <hr class="reveal" />
+
+    <!-- 핵심 요약 -->
+    <section class="reveal">
+      <h2>핵심 요약</h2>
+      <div class="summary-box">
+        <p>
+          React 컴포넌트는 네 가지 조건에서 리렌더링됩니다.
+          자신의 <strong>상태가 바뀔 때</strong>, <strong>부모 컴포넌트가 리렌더링될 때</strong>,
+          구독 중인 <strong>Context 값이 바뀔 때</strong>,
+          그리고 사용 중인 <strong>커스텀 훅 내부 상태가 바뀔 때</strong>입니다.
+          이 조건들을 정확히 이해해야 불필요한 리렌더링을 찾아 제거할 수 있습니다.
+        </p>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 왜 -->
+    <section class="reveal">
+      <h2>왜 이런 문제가 발생하나요?</h2>
+
+      <p>
+        리렌더링이 일어나는 조건을 알지 못하면, 컴포넌트가 예상보다 훨씬 자주 리렌더링되는 이유를 파악하기 어렵습니다.
+        각 조건을 구체적으로 살펴봅니다.
+      </p>
+
+      <div class="condition-grid">
+        <div class="condition-card">
+          <div class="cond-num">1</div>
+          <div class="cond-body">
+            <h3>자신의 상태(state)가 바뀔 때</h3>
+            <p>
+              <code>useState</code>나 <code>useReducer</code>로 관리하는 상태가 변경되면 해당 컴포넌트가 리렌더링됩니다.
+              단, 새 값이 이전 값과 참조가 같으면(<code>Object.is</code> 비교) 리렌더링이 발생하지 않습니다.
+            </p>
+          </div>
+        </div>
+        <div class="condition-card">
+          <div class="cond-num">2</div>
+          <div class="cond-body">
+            <h3>부모 컴포넌트가 리렌더링될 때</h3>
+            <p>
+              부모가 리렌더링되면 자식도 기본적으로 함께 리렌더링됩니다.
+              자식에게 전달되는 props가 전혀 바뀌지 않았더라도 마찬가지입니다.
+              <code>React.memo</code>로 감싸야만 props 변경 여부를 비교해 차단할 수 있습니다.
+            </p>
+          </div>
+        </div>
+        <div class="condition-card">
+          <div class="cond-num">3</div>
+          <div class="cond-body">
+            <h3>구독 중인 Context 값이 바뀔 때</h3>
+            <p>
+              <code>useContext</code>로 Context를 구독하는 컴포넌트는 Provider의 value가 바뀔 때마다 리렌더링됩니다.
+              value 객체의 참조가 바뀌면, 실제로 사용하는 값이 달라지지 않았어도 리렌더링됩니다.
+            </p>
+          </div>
+        </div>
+        <div class="condition-card">
+          <div class="cond-num">4</div>
+          <div class="cond-body">
+            <h3>커스텀 훅 내부 상태가 바뀔 때</h3>
+            <p>
+              커스텀 훅 내부에서 <code>useState</code>를 사용하면, 훅을 호출한 컴포넌트가 그 상태의 소유자가 됩니다.
+              훅 내부 상태가 바뀌면 사용하는 컴포넌트가 리렌더링됩니다.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 트리 시각화 -->
+      <div class="tree-visual">
+        <span class="tree-label">부모 리렌더링 시 전파 범위</span>
+        <div><span class="tree-rerenders">App (count 변경)</span><span class="tree-dim">// 리렌더링 발생</span></div>
+        <div>&nbsp;&nbsp;<span class="tree-rerenders">├── Header</span><span class="tree-dim">// props 없어도 리렌더링</span></div>
+        <div>&nbsp;&nbsp;<span class="tree-rerenders">├── Profile</span><span class="tree-dim">// props 없어도 리렌더링</span></div>
+        <div>&nbsp;&nbsp;<span class="tree-rerenders">│&nbsp;&nbsp;&nbsp;└── Avatar</span><span class="tree-dim">// 연쇄 리렌더링</span></div>
+        <div>&nbsp;&nbsp;<span class="tree-safe">└── MemoizedChild (React.memo)</span><span class="tree-dim">// props 동일 → 건너뜀</span></div>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- Bad -->
+    <section class="reveal">
+      <h2>예시 코드 — 잘못된 사용</h2>
+
+      <div class="code-block bad">
+        <div class="code-header">Bad — Context value를 렌더링마다 새 객체로 생성</div>
+        <pre><code><span class="keyword">const</span> UserContext = <span class="func">createContext</span>(<span class="keyword">null</span>);
+
+<span class="keyword">export default function</span> <span class="func">App</span>() {
+  <span class="keyword">const</span> [count, setCount] = <span class="func">useState</span>(<span class="number">0</span>);
+  <span class="keyword">const</span> [user, setUser] = <span class="func">useState</span>({ <span class="prop">name</span>: <span class="string">'Minwook'</span> });
+
+  <span class="comment">// count가 바뀔 때마다 { user, setUser }는 새 객체 참조가 됩니다.</span>
+  <span class="comment">// UserContext를 구독하는 모든 컴포넌트가 불필요하게 리렌더링됩니다.</span>
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">UserContext.Provider</span> <span class="prop">value</span>={{ user, setUser }}&gt;
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={() => <span class="func">setCount</span>((c) => c + <span class="number">1</span>)}&gt;{count}&lt;/<span class="tag">button</span>&gt;
+      &lt;<span class="tag">Profile</span> /&gt;
+      &lt;<span class="tag">Settings</span> /&gt;
+    &lt;/<span class="tag">UserContext.Provider</span>&gt;
+  );
+}
+
+<span class="keyword">function</span> <span class="func">Profile</span>() {
+  <span class="keyword">const</span> { user } = <span class="func">useContext</span>(UserContext);
+  <span class="comment">// count 변경과 무관하지만 Context value 참조가 바뀌어 리렌더링됩니다.</span>
+  <span class="keyword">return</span> &lt;<span class="tag">p</span>&gt;{user.name}&lt;/<span class="tag">p</span>&gt;;
+}</code></pre>
+      </div>
+
+      <div class="code-block bad">
+        <div class="code-header">Bad — 부모 상태와 무관한 자식이 매번 리렌더링</div>
+        <pre><code><span class="keyword">export default function</span> <span class="func">Parent</span>() {
+  <span class="keyword">const</span> [count, setCount] = <span class="func">useState</span>(<span class="number">0</span>);
+
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">div</span>&gt;
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={() => <span class="func">setCount</span>((c) => c + <span class="number">1</span>)}&gt;{count}&lt;/<span class="tag">button</span>&gt;
+      <span class="comment">// count와 전혀 무관하지만 부모 리렌더링 시 함께 리렌더링됩니다.</span>
+      &lt;<span class="tag">HeavyChild</span> /&gt;
+    &lt;/<span class="tag">div</span>&gt;
+  );
+}
+
+<span class="keyword">function</span> <span class="func">HeavyChild</span>() {
+  <span class="keyword">return</span> &lt;<span class="tag">div</span>&gt;렌더링 비용이 큰 컴포넌트&lt;/<span class="tag">div</span>&gt;;
+}</code></pre>
+      </div>
+
+      <p>
+        <code>App</code>의 <code>count</code>가 바뀔 때마다 <code>value</code> 객체가 새로 만들어져
+        <code>Profile</code>과 <code>Settings</code>가 불필요하게 리렌더링됩니다.
+        <code>HeavyChild</code>는 props가 없어도 부모 리렌더링에 따라 함께 리렌더링됩니다.
+      </p>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- Good -->
+    <section class="reveal">
+      <h2>올바른 사용법</h2>
+
+      <div class="code-block good">
+        <div class="code-header">Good — Context value를 useMemo로 참조 고정</div>
+        <pre><code><span class="keyword">const</span> UserContext = <span class="func">createContext</span>(<span class="keyword">null</span>);
+
+<span class="keyword">export default function</span> <span class="func">App</span>() {
+  <span class="keyword">const</span> [count, setCount] = <span class="func">useState</span>(<span class="number">0</span>);
+  <span class="keyword">const</span> [user, setUser] = <span class="func">useState</span>({ <span class="prop">name</span>: <span class="string">'Minwook'</span> });
+
+  <span class="comment">// user나 setUser가 바뀔 때만 새 참조가 만들어집니다.</span>
+  <span class="comment">// count가 바뀌어도 contextValue 참조는 유지됩니다.</span>
+  <span class="keyword">const</span> contextValue = <span class="func">useMemo</span>(() => ({ user, setUser }), [user, setUser]);
+
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">UserContext.Provider</span> <span class="prop">value</span>={contextValue}&gt;
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={() => <span class="func">setCount</span>((c) => c + <span class="number">1</span>)}&gt;{count}&lt;/<span class="tag">button</span>&gt;
+      &lt;<span class="tag">Profile</span> /&gt;
+      &lt;<span class="tag">Settings</span> /&gt;
+    &lt;/<span class="tag">UserContext.Provider</span>&gt;
+  );
+}
+
+<span class="keyword">function</span> <span class="func">Profile</span>() {
+  <span class="keyword">const</span> { user } = <span class="func">useContext</span>(UserContext);
+  <span class="comment">// count가 바뀌어도 contextValue 참조가 유지되므로 리렌더링되지 않습니다.</span>
+  <span class="keyword">return</span> &lt;<span class="tag">p</span>&gt;{user.name}&lt;/<span class="tag">p</span>&gt;;
+}</code></pre>
+      </div>
+
+      <div class="code-block good">
+        <div class="code-header">Good — 상태 내리기(State Colocation)로 리렌더링 범위 축소</div>
+        <pre><code><span class="comment">// count 상태를 실제로 사용하는 Counter 안으로 내립니다.</span>
+<span class="keyword">function</span> <span class="func">Counter</span>() {
+  <span class="keyword">const</span> [count, setCount] = <span class="func">useState</span>(<span class="number">0</span>);
+  <span class="keyword">return</span> &lt;<span class="tag">button</span> <span class="prop">onClick</span>={() => <span class="func">setCount</span>((c) => c + <span class="number">1</span>)}&gt;{count}&lt;/<span class="tag">button</span>&gt;;
+}
+
+<span class="keyword">export default function</span> <span class="func">Parent</span>() {
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">div</span>&gt;
+      &lt;<span class="tag">Counter</span> /&gt;
+      <span class="comment">// Counter가 리렌더링되어도 Parent는 리렌더링되지 않습니다.</span>
+      <span class="comment">// HeavyChild는 아무런 영향을 받지 않습니다.</span>
+      &lt;<span class="tag">HeavyChild</span> /&gt;
+    &lt;/<span class="tag">div</span>&gt;
+  );
+}</code></pre>
+      </div>
+
+      <div class="code-block good">
+        <div class="code-header">Good — children prop으로 렌더링 범위 분리</div>
+        <pre><code><span class="comment">// children은 부모가 리렌더링되어도 다시 만들어지지 않습니다.</span>
+<span class="keyword">function</span> <span class="func">CounterWrapper</span>({ children }: { <span class="prop">children</span>: <span class="type">React.ReactNode</span> }) {
+  <span class="keyword">const</span> [count, setCount] = <span class="func">useState</span>(<span class="number">0</span>);
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">div</span>&gt;
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={() => <span class="func">setCount</span>((c) => c + <span class="number">1</span>)}&gt;{count}&lt;/<span class="tag">button</span>&gt;
+      {children}
+    &lt;/<span class="tag">div</span>&gt;
+  );
+}
+
+<span class="keyword">export default function</span> <span class="func">ParentWithChildren</span>() {
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">CounterWrapper</span>&gt;
+      <span class="comment">// CounterWrapper가 리렌더링되어도 HeavyChild는 영향받지 않습니다.</span>
+      &lt;<span class="tag">HeavyChild</span> /&gt;
+    &lt;/<span class="tag">CounterWrapper</span>&gt;
+  );
+}</code></pre>
+      </div>
+
+      <div class="tip-box">
+        <p>
+          상태를 실제로 사용하는 컴포넌트 안으로 내리거나, <code>children</code> prop으로 렌더링 범위를 분리하는 것이
+          <code>React.memo</code>보다 먼저 시도해야 할 방법입니다.
+          구조를 바꾸는 것이 메모이제이션을 추가하는 것보다 유지보수에 유리합니다.
+        </p>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 정리 -->
+    <section class="reveal">
+      <h2>정리</h2>
+
+      <p>
+        리렌더링 자체는 나쁜 것이 아닙니다. React는 빠른 리렌더링을 위해 설계되어 있습니다.
+        문제는 UI가 바뀌지 않는데 불필요하게 발생하는 리렌더링입니다.
+        React DevTools의 Profiler로 먼저 측정한 뒤, 병목이 확인된 곳에만 최적화를 적용하세요.
+      </p>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>리렌더링 조건</th>
+            <th>발생 시점</th>
+            <th>방지 방법</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-1">상태 변경</span></td>
+            <td><code>setState</code> 호출 후 참조가 바뀔 때</td>
+            <td>상태를 필요한 곳에만 유지</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-2">부모 리렌더링</span></td>
+            <td>부모 컴포넌트가 리렌더링될 때마다</td>
+            <td>상태 내리기, children 분리, <code>React.memo</code></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-3">Context 변경</span></td>
+            <td>Provider의 value 참조가 바뀔 때</td>
+            <td>value를 <code>useMemo</code>로 안정화</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-4">커스텀 훅 상태</span></td>
+            <td>훅 내부 상태가 바뀔 때</td>
+            <td>훅 구독 범위를 최소화</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 추가 학습 자료 -->
+    <section class="reveal">
+      <h2>추가 학습 자료 공유합니다.</h2>
+      <ul class="resource-list">
+        <li>
+          <a href="https://react.dev/learn/render-and-commit" target="_blank" rel="noopener noreferrer">
+            React 공식 문서 — Render and Commit
+          </a>
+        </li>
+        <li>
+          <a href="https://react.dev/learn/passing-data-deeply-with-context" target="_blank" rel="noopener noreferrer">
+            React 공식 문서 — Passing Data Deeply with Context
+          </a>
+        </li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <p>kangmu238@gmail.com</p>
+        </div>
+        <div class="footer-col">
+          <h4>Socials</h4>
+          <a href="https://github.com/wookminkang" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+        <div class="footer-col">
+          <h4>Etc</h4>
+          <a href="#">팀 소개</a>
+          <a href="#">서비스 피드백</a>
+        </div>
+      </div>
+      <hr class="footer-divider" />
+      <p class="footer-copyright">Copyright &copy; 2026 매일매일. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    const progressBar = document.getElementById('progress-bar');
+    window.addEventListener('scroll', () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      progressBar.style.width = (docHeight > 0 ? (scrollTop / docHeight) * 100 : 0) + '%';
+    });
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+  </script>
+
+</body>
+</html>

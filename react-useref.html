@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>React에서 useRef는 언제 사용하나요? — 매일매일</title>
+  <meta name="description" content="useRef는 DOM 접근과 리렌더링 없이 값을 유지할 때 사용합니다. .current를 변경해도 리렌더링이 발생하지 않습니다." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #fe6e00;
+      --primary-light: #fff3e8;
+      --bg: #ffffff;
+      --surface: #F9F9F9;
+      --text: #212121;
+      --text-secondary: #757575;
+      --border: #E0E0E0;
+      --code-bg: #1e1e1e;
+      --code-bad: #e05252;
+      --code-good: #4caf7d;
+      --footer-bg: #1A1A2E;
+      --max-width: 720px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 16px; line-height: 1.8;
+      color: var(--text); background: var(--bg);
+    }
+
+    #progress-bar {
+      position: fixed; top: 0; left: 0;
+      height: 3px; width: 0%;
+      background: var(--primary); z-index: 1000;
+      transition: width 0.1s linear;
+    }
+
+    header {
+      position: sticky; top: 0;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .header-inner {
+      max-width: var(--max-width); margin: 0 auto;
+      padding: 0 24px; height: 56px;
+      display: flex; align-items: center;
+    }
+
+    .logo { font-size: 18px; font-weight: 700; color: var(--text); text-decoration: none; }
+    .logo span { color: var(--primary); }
+
+    main { max-width: var(--max-width); margin: 0 auto; padding: 56px 24px 80px; }
+
+    .category-badge {
+      display: inline-block;
+      padding: 6px 14px 6px 12px;
+      background: var(--primary-light);
+      border-left: 4px solid var(--primary);
+      color: var(--primary);
+      font-size: 13px; font-weight: 600;
+      border-radius: 0 4px 4px 0;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 28px; font-weight: 700;
+      line-height: 1.3; letter-spacing: -0.5px;
+      margin-bottom: 32px;
+    }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+    h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; line-height: 1.3; }
+    p { color: var(--text); margin-bottom: 16px; }
+    ul, ol { padding-left: 24px; margin-bottom: 16px; }
+    li { margin-bottom: 8px; line-height: 1.8; }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; color: var(--primary);
+      background: var(--primary-light);
+      padding: 2px 6px; border-radius: 4px;
+    }
+
+    /* 코드 블록 */
+    .code-block { margin: 20px 0; border-radius: 10px; overflow: hidden; }
+
+    .code-header {
+      padding: 10px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; font-weight: 500;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .code-header::before {
+      content: ''; display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%; flex-shrink: 0;
+    }
+
+    .code-block.bad .code-header {
+      background: #2a1a1a; color: var(--code-bad);
+      border-bottom: 2px solid var(--code-bad);
+    }
+    .code-block.bad .code-header::before { background: var(--code-bad); }
+
+    .code-block.good .code-header {
+      background: #1a2a1e; color: var(--code-good);
+      border-bottom: 2px solid var(--code-good);
+    }
+    .code-block.good .code-header::before { background: var(--code-good); }
+
+    pre { background: var(--code-bg); padding: 20px; overflow-x: auto; margin: 0; }
+
+    pre code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; line-height: 1.6;
+      color: #d4d4d4; background: none;
+      padding: 0; border-radius: 0;
+    }
+
+    .comment { color: #6a9955; }
+    .keyword { color: #569cd6; }
+    .string { color: #ce9178; }
+    .func { color: #dcdcaa; }
+    .type { color: #4ec9b0; }
+    .number { color: #b5cea8; }
+    .prop { color: #9cdcfe; }
+    .tag { color: #f28b54; }
+
+    /* 요약 박스 */
+    .summary-box {
+      background: var(--surface);
+      border-left: 4px solid var(--primary);
+      border-radius: 0 8px 8px 0;
+      padding: 20px 24px; margin-bottom: 16px;
+    }
+    .summary-box p { margin-bottom: 0; }
+
+    /* 3가지 저장 방법 비교 */
+    .storage-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 24px 0; }
+
+    .storage-card {
+      background: var(--surface);
+      border-radius: 8px; padding: 16px;
+      border-top: 3px solid var(--border);
+      text-align: center;
+    }
+
+    .storage-card.state-card  { border-top-color: #1565c0; }
+    .storage-card.ref-card    { border-top-color: var(--primary); }
+    .storage-card.var-card    { border-top-color: #757575; }
+
+    .storage-card .s-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; font-weight: 700;
+      margin-bottom: 10px; display: block;
+    }
+
+    .state-card .s-label { color: #1565c0; }
+    .ref-card   .s-label { color: var(--primary); }
+    .var-card   .s-label { color: #757575; }
+
+    .storage-card .s-row {
+      display: flex; justify-content: space-between;
+      align-items: center; padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+
+    .storage-card .s-row:last-child { border-bottom: none; }
+    .storage-card .s-key { color: var(--text-secondary); }
+
+    .dot-yes { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--code-good); }
+    .dot-no  { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--code-bad); }
+
+    /* 용도 리스트 */
+    .use-case-grid { display: grid; gap: 10px; margin: 24px 0; }
+
+    .use-case-item {
+      background: var(--surface);
+      border-radius: 8px; padding: 14px 18px;
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+
+    .use-case-icon {
+      width: 32px; height: 32px;
+      background: var(--primary-light);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; font-weight: 700;
+      color: var(--primary);
+    }
+
+    .use-case-body h3 { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    .use-case-body p  { font-size: 13px; color: var(--text-secondary); margin-bottom: 0; line-height: 1.6; }
+
+    /* 비교 테이블 */
+    .comparison-table {
+      width: 100%; border-collapse: collapse;
+      margin: 24px 0; font-size: 14px;
+    }
+
+    .comparison-table th {
+      background: var(--surface);
+      padding: 12px 16px;
+      text-align: left; font-weight: 600;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .comparison-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .comparison-table tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .badge-state { background: #e3f2fd; color: #1565c0; }
+    .badge-ref   { background: var(--primary-light); color: var(--primary); }
+    .badge-yes   { background: #e8f5e9; color: #2e7d32; font-family: 'Pretendard', sans-serif; }
+    .badge-no    { background: #fce4ec; color: #c62828; font-family: 'Pretendard', sans-serif; }
+
+    /* 추가 학습 자료 */
+    .resource-list { list-style: none; padding: 0; }
+    .resource-list li { margin-bottom: 12px; }
+    .resource-list a {
+      color: var(--primary); text-decoration: none;
+      font-size: 15px; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .resource-list a::before {
+      content: ''; display: inline-block;
+      width: 6px; height: 6px;
+      background: var(--primary); border-radius: 50%; flex-shrink: 0;
+    }
+    .resource-list a:hover { text-decoration: underline; }
+
+    /* 푸터 */
+    footer { background: var(--footer-bg); color: #ffffff; padding: 48px 24px 32px; }
+    .footer-inner { max-width: var(--max-width); margin: 0 auto; }
+    .footer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-bottom: 40px; }
+    .footer-col h4 { font-size: 13px; font-weight: 600; color: #9e9e9e; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+    .footer-col p, .footer-col a { font-size: 14px; color: #bdbdbd; text-decoration: none; display: block; margin-bottom: 6px; line-height: 1.7; }
+    .footer-col a:hover { color: #ffffff; }
+    .footer-divider { border: none; border-top: 1px solid #2e2e40; margin-bottom: 20px; }
+    .footer-copyright { font-size: 13px; color: #616161; text-align: center; }
+
+    /* reveal */
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 640px) {
+      h1 { font-size: 22px; }
+      main { padding: 40px 20px 64px; }
+      .storage-grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+      .comparison-table { font-size: 13px; }
+      .comparison-table th, .comparison-table td { padding: 10px 10px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="progress-bar"></div>
+
+  <header>
+    <div class="header-inner">
+      <a href="#" class="logo">매일<span>매일</span></a>
+    </div>
+  </header>
+
+  <main>
+
+    <div class="category-badge reveal">프론트엔드에 관련한 질문이에요.</div>
+    <h1 class="reveal">React에서 useRef는 언제 사용하나요?</h1>
+
+    <hr class="reveal" />
+
+    <!-- 핵심 요약 -->
+    <section class="reveal">
+      <h2>핵심 요약</h2>
+      <div class="summary-box">
+        <p>
+          <code>useRef</code>는 두 가지 용도로 사용합니다.
+          첫째, DOM 요소에 직접 접근해야 할 때(포커스, 스크롤, 크기 측정 등),
+          둘째, 리렌더링을 발생시키지 않고 값을 유지해야 할 때(타이머 ID, 이전 값 추적 등)입니다.
+          <code>.current</code>를 변경해도 컴포넌트가 리렌더링되지 않는 것이 <code>useState</code>와의 핵심 차이입니다.
+        </p>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 왜 -->
+    <section class="reveal">
+      <h2>왜 이런 문제가 발생하나요?</h2>
+
+      <p>React에서 값을 저장하는 방법에 따라 동작이 달라집니다. 세 가지를 비교해보면 차이가 명확합니다.</p>
+
+      <div class="storage-grid">
+        <div class="storage-card state-card">
+          <span class="s-label">useState</span>
+          <div class="s-row"><span class="s-key">리렌더링</span><span class="dot-yes"></span></div>
+          <div class="s-row"><span class="s-key">값 유지</span><span class="dot-yes"></span></div>
+          <div class="s-row"><span class="s-key">화면 반영</span><span class="dot-yes"></span></div>
+        </div>
+        <div class="storage-card ref-card">
+          <span class="s-label">useRef</span>
+          <div class="s-row"><span class="s-key">리렌더링</span><span class="dot-no"></span></div>
+          <div class="s-row"><span class="s-key">값 유지</span><span class="dot-yes"></span></div>
+          <div class="s-row"><span class="s-key">화면 반영</span><span class="dot-no"></span></div>
+        </div>
+        <div class="storage-card var-card">
+          <span class="s-label">일반 변수</span>
+          <div class="s-row"><span class="s-key">리렌더링</span><span class="dot-no"></span></div>
+          <div class="s-row"><span class="s-key">값 유지</span><span class="dot-no"></span></div>
+          <div class="s-row"><span class="s-key">화면 반영</span><span class="dot-no"></span></div>
+        </div>
+      </div>
+
+      <p><code>useRef</code>가 필요한 대표적인 상황은 다음과 같습니다.</p>
+
+      <div class="use-case-grid">
+        <div class="use-case-item">
+          <div class="use-case-icon">DOM</div>
+          <div class="use-case-body">
+            <h3>DOM 요소 접근</h3>
+            <p>특정 입력 필드에 포커스 주기, 스크롤 위치 조작, 요소의 크기·위치 측정</p>
+          </div>
+        </div>
+        <div class="use-case-item">
+          <div class="use-case-icon">ID</div>
+          <div class="use-case-body">
+            <h3>타이머 ID 보관</h3>
+            <p><code>setTimeout</code>, <code>setInterval</code>의 반환값을 저장해 나중에 취소할 때</p>
+          </div>
+        </div>
+        <div class="use-case-item">
+          <div class="use-case-icon">PRV</div>
+          <div class="use-case-body">
+            <h3>이전 값 추적</h3>
+            <p>직전 렌더링의 props나 state 값을 기억할 때</p>
+          </div>
+        </div>
+        <div class="use-case-item">
+          <div class="use-case-icon">FLG</div>
+          <div class="use-case-body">
+            <h3>렌더링 간 플래그 유지</h3>
+            <p>최초 렌더링 여부, 특정 동작의 실행 여부 등 Boolean 플래그 보관</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- Bad -->
+    <section class="reveal">
+      <h2>예시 코드 — 잘못된 사용</h2>
+
+      <div class="code-block bad">
+        <div class="code-header">Bad — 타이머 ID를 useState에 저장</div>
+        <pre><code><span class="keyword">export default function</span> <span class="func">Timer</span>() {
+  <span class="keyword">const</span> [isRunning, setIsRunning] = <span class="func">useState</span>(<span class="keyword">false</span>);
+
+  <span class="comment">// 타이머 ID는 화면에 표시되지 않으므로 useState가 아닌 useRef에 저장해야 합니다.</span>
+  <span class="comment">// setInterval ID가 바뀔 때마다 불필요한 리렌더링이 발생합니다.</span>
+  <span class="keyword">const</span> [timerId, setTimerId] = <span class="func">useState</span>&lt;<span class="type">number</span> | <span class="keyword">null</span>&gt;(<span class="keyword">null</span>);
+
+  <span class="keyword">const</span> <span class="func">start</span> = () => {
+    <span class="keyword">const</span> id = window.<span class="func">setInterval</span>(() => console.<span class="func">log</span>(<span class="string">'tick'</span>), <span class="number">1000</span>);
+    <span class="func">setTimerId</span>(id);    <span class="comment">// 불필요한 리렌더링 발생</span>
+    <span class="func">setIsRunning</span>(<span class="keyword">true</span>);
+  };
+
+  <span class="keyword">const</span> <span class="func">stop</span> = () => {
+    <span class="keyword">if</span> (timerId !== <span class="keyword">null</span>) {
+      window.<span class="func">clearInterval</span>(timerId);
+      <span class="func">setTimerId</span>(<span class="keyword">null</span>); <span class="comment">// 불필요한 리렌더링 발생</span>
+    }
+    <span class="func">setIsRunning</span>(<span class="keyword">false</span>);
+  };
+
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">div</span>&gt;
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={start} <span class="prop">disabled</span>={isRunning}&gt;시작&lt;/<span class="tag">button</span>&gt;
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={stop} <span class="prop">disabled</span>={!isRunning}&gt;정지&lt;/<span class="tag">button</span>&gt;
+    &lt;/<span class="tag">div</span>&gt;
+  );
+}</code></pre>
+      </div>
+
+      <div class="code-block bad">
+        <div class="code-header">Bad — 화면에 표시할 값을 useRef에 저장</div>
+        <pre><code><span class="keyword">export default function</span> <span class="func">Counter</span>() {
+  <span class="keyword">const</span> countRef = <span class="func">useRef</span>(<span class="number">0</span>);
+
+  <span class="keyword">const</span> <span class="func">increment</span> = () => {
+    countRef.current += <span class="number">1</span>; <span class="comment">// .current를 바꿔도 리렌더링이 발생하지 않습니다.</span>
+  };
+
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">div</span>&gt;
+      <span class="comment">// countRef.current가 바뀌어도 화면은 갱신되지 않습니다.</span>
+      &lt;<span class="tag">p</span>&gt;{countRef.current}&lt;/<span class="tag">p</span>&gt;
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={increment}&gt;증가&lt;/<span class="tag">button</span>&gt;
+    &lt;/<span class="tag">div</span>&gt;
+  );
+}</code></pre>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- Good -->
+    <section class="reveal">
+      <h2>올바른 사용법</h2>
+
+      <div class="code-block good">
+        <div class="code-header">Good — DOM 접근: 버튼 클릭 시 input에 포커스</div>
+        <pre><code><span class="keyword">import</span> { useRef } <span class="keyword">from</span> <span class="string">'react'</span>;
+
+<span class="keyword">export default function</span> <span class="func">SearchForm</span>() {
+  <span class="keyword">const</span> inputRef = <span class="func">useRef</span>&lt;<span class="type">HTMLInputElement</span>&gt;(<span class="keyword">null</span>);
+
+  <span class="keyword">const</span> <span class="func">focusInput</span> = () => {
+    inputRef.current?.<span class="func">focus</span>(); <span class="comment">// DOM 요소에 직접 접근합니다.</span>
+  };
+
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">div</span>&gt;
+      &lt;<span class="tag">input</span> <span class="prop">ref</span>={inputRef} <span class="prop">type</span>=<span class="string">"text"</span> <span class="prop">placeholder</span>=<span class="string">"검색어를 입력하세요"</span> /&gt;
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={focusInput}&gt;검색창 포커스&lt;/<span class="tag">button</span>&gt;
+    &lt;/<span class="tag">div</span>&gt;
+  );
+}</code></pre>
+      </div>
+
+      <div class="code-block good">
+        <div class="code-header">Good — 타이머 ID 보관: useRef로 리렌더링 없이 유지</div>
+        <pre><code><span class="keyword">import</span> { useState, useRef } <span class="keyword">from</span> <span class="string">'react'</span>;
+
+<span class="keyword">export default function</span> <span class="func">Timer</span>() {
+  <span class="keyword">const</span> [isRunning, setIsRunning] = <span class="func">useState</span>(<span class="keyword">false</span>);
+  <span class="keyword">const</span> timerIdRef = <span class="func">useRef</span>&lt;<span class="type">number</span> | <span class="keyword">null</span>&gt;(<span class="keyword">null</span>); <span class="comment">// 리렌더링 없이 값 유지</span>
+
+  <span class="keyword">const</span> <span class="func">start</span> = () => {
+    timerIdRef.current = window.<span class="func">setInterval</span>(() => console.<span class="func">log</span>(<span class="string">'tick'</span>), <span class="number">1000</span>);
+    <span class="func">setIsRunning</span>(<span class="keyword">true</span>); <span class="comment">// 버튼 상태만 리렌더링</span>
+  };
+
+  <span class="keyword">const</span> <span class="func">stop</span> = () => {
+    <span class="keyword">if</span> (timerIdRef.current !== <span class="keyword">null</span>) {
+      window.<span class="func">clearInterval</span>(timerIdRef.current);
+      timerIdRef.current = <span class="keyword">null</span>;
+    }
+    <span class="func">setIsRunning</span>(<span class="keyword">false</span>);
+  };
+
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">div</span>&gt;
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={start} <span class="prop">disabled</span>={isRunning}&gt;시작&lt;/<span class="tag">button</span>&gt;
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={stop} <span class="prop">disabled</span>={!isRunning}&gt;정지&lt;/<span class="tag">button</span>&gt;
+    &lt;/<span class="tag">div</span>&gt;
+  );
+}</code></pre>
+      </div>
+
+      <div class="code-block good">
+        <div class="code-header">Good — 이전 값 추적: 직전 렌더링의 state 값 기억</div>
+        <pre><code><span class="keyword">import</span> { useState, useRef, useEffect } <span class="keyword">from</span> <span class="string">'react'</span>;
+
+<span class="keyword">export default function</span> <span class="func">PreviousValue</span>() {
+  <span class="keyword">const</span> [count, setCount] = <span class="func">useState</span>(<span class="number">0</span>);
+  <span class="keyword">const</span> prevCountRef = <span class="func">useRef</span>&lt;<span class="type">number</span>&gt;(<span class="number">0</span>);
+
+  <span class="func">useEffect</span>(() => {
+    <span class="comment">// 렌더링이 완료된 후 이전 값을 업데이트합니다.</span>
+    prevCountRef.current = count;
+  });
+
+  <span class="keyword">return</span> (
+    &lt;<span class="tag">div</span>&gt;
+      &lt;<span class="tag">p</span>&gt;현재: {count}&lt;/<span class="tag">p</span>&gt;
+      &lt;<span class="tag">p</span>&gt;이전: {prevCountRef.current}&lt;/<span class="tag">p</span>&gt;
+      &lt;<span class="tag">button</span> <span class="prop">onClick</span>={() => <span class="func">setCount</span>((c) => c + <span class="number">1</span>)}&gt;증가&lt;/<span class="tag">button</span>&gt;
+    &lt;/<span class="tag">div</span>&gt;
+  );
+}</code></pre>
+      </div>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 정리 -->
+    <section class="reveal">
+      <h2>정리</h2>
+
+      <p>
+        값이 바뀔 때 화면이 업데이트되어야 한다면 <code>useState</code>,
+        화면과 무관하게 값만 유지하면 된다면 <code>useRef</code>를 선택하세요.
+      </p>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>구분</th>
+            <th><span class="badge badge-state">useState</span></th>
+            <th><span class="badge badge-ref">useRef</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>값 변경 시 리렌더링</td>
+            <td><span class="badge badge-yes">O</span></td>
+            <td><span class="badge badge-no">X</span></td>
+          </tr>
+          <tr>
+            <td>렌더링 간 값 유지</td>
+            <td><span class="badge badge-yes">O</span></td>
+            <td><span class="badge badge-yes">O</span></td>
+          </tr>
+          <tr>
+            <td>용도</td>
+            <td>화면에 표시되는 값</td>
+            <td>DOM 접근, 렌더링과 무관한 값</td>
+          </tr>
+          <tr>
+            <td>값 읽기</td>
+            <td>변수 직접 사용</td>
+            <td><code>.current</code>로 접근</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <hr class="reveal" />
+
+    <!-- 추가 학습 자료 -->
+    <section class="reveal">
+      <h2>추가 학습 자료 공유합니다.</h2>
+      <ul class="resource-list">
+        <li>
+          <a href="https://react.dev/reference/react/useRef" target="_blank" rel="noopener noreferrer">
+            React 공식 문서 — useRef
+          </a>
+        </li>
+        <li>
+          <a href="https://react.dev/learn/referencing-values-with-refs" target="_blank" rel="noopener noreferrer">
+            React 공식 문서 — Referencing Values with Refs
+          </a>
+        </li>
+      </ul>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <p>kangmu238@gmail.com</p>
+        </div>
+        <div class="footer-col">
+          <h4>Socials</h4>
+          <a href="https://github.com/wookminkang" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+        <div class="footer-col">
+          <h4>Etc</h4>
+          <a href="#">팀 소개</a>
+          <a href="#">서비스 피드백</a>
+        </div>
+      </div>
+      <hr class="footer-divider" />
+      <p class="footer-copyright">Copyright &copy; 2026 매일매일. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    const progressBar = document.getElementById('progress-bar');
+    window.addEventListener('scroll', () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      progressBar.style.width = (docHeight > 0 ? (scrollTop / docHeight) * 100 : 0) + '%';
+    });
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+  </script>
+
+</body>
+</html>
