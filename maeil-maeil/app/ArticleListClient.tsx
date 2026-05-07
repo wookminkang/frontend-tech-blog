@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import type { ArticleMeta } from "@/types/article";
 import Header from "@/components/Header";
@@ -26,6 +26,7 @@ export default function ArticleListClient({
   const currentPage = Number(searchParams.get("page") ?? "1");
   const [searchQuery, setSearchQuery] = useState("");
   const [inputValue, setInputValue] = useState("");
+  const [, startTransition] = useTransition();
 
   function pushParams(updates: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -37,7 +38,9 @@ export default function ArticleListClient({
       }
     }
     const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname);
+    startTransition(() => {
+      router.push(query ? `${pathname}?${query}` : pathname);
+    });
   }
 
   function handleCategoryChange(cat: string) {
