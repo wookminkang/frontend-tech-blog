@@ -98,7 +98,7 @@ export default function ArticleListClient({
 
   return (
     <>
-      <HomeModal />
+      {/* <HomeModal /> */}
       <Header />
 
       <main style={{ flex: 1 }}>
